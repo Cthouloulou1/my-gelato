@@ -8,7 +8,7 @@ import torch
 from torch.utils.data import DataLoader, Subset
 from sklearn.metrics import f1_score, confusion_matrix, classification_report
 
-from train_equivariant_cnn_v2 import (
+from train_equivariant_cnn import (
     CAPointCloudDataset, EquivariantPointClassifier, RESIDUE_CLASSES, N_CLASSES,
 )
 
