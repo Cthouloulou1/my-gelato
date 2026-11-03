@@ -3,6 +3,23 @@
 Cubes de densité (20³ voxels à 1 Å) centrés sur chaque Cα → classe du résidu (20 AA + OTHER).
 Deux modèles : un réseau **équivariant SO(3)** (e3nn, nuage de points) et un **CNN 3D baseline**.
 
+## Fichiers
+
+| Fichier | Rôle |
+|---|---|
+| `download_datasets.py` | Sélectionne et télécharge (PDB `.cif` + carte EMDB) le train/val et les 3 tests par résolution, écrit `splits.json` |
+| `download_cryoem_pdb_subset.py` | Ancien script de téléchargement (sous-ensemble ≤ 3 Å, sans split) |
+| `extract_ca_density_lmdb.py` | Extrait un cube de densité autour de chaque Cα, filtre sur la densité locale, stocke en LMDB |
+| `preprocess_lmdb.py` | Rééchantillonnage à espacement commun + z-score local par cube |
+| `train_equivariant_cnn.py` | Entraîne le classifieur équivariant SO(3) (e3nn, nuage des voxels les plus denses) |
+| `train_cnn_baseline.py` | Entraîne le CNN 3D baseline sur les cubes (augmentation `none` / `octahedral` / `continuous`) |
+| `train_utils.py` | Commun aux deux : split par `pdb_id`, poids de classes, métriques, courbes, matrice de confusion, ROC |
+| `evaluate_models.py` | Évalue un ou plusieurs checkpoints sur les tests, avec un tableau et une figure de comparaison |
+| `test_model.py` | Évaluation simple d'un checkpoint équivariant sur un JSON `{"test": [...]}` |
+| `diagnostics.py` | Diagnostics : surapprentissage d'un petit lot, baselines simples, hétérogénéité entre cartes, métadonnées |
+| `fetch_emdb_resolution.py` | Récupère la résolution EMDB des cartes présentes dans un LMDB |
+| `best_model.pt`, `emdb_resolution.csv`, `extraction.log` | Artefacts d'une précédente expérience |
+
 ## Workflow
 
 ```bash
@@ -43,7 +60,7 @@ python preprocess_lmdb.py --input-lmdb /data/eyerly/splits_raw.lmdb \
 ### 3. Entraînement
 
 ```bash
-python train_equivariant_cnn_v2.py --lmdb-path /data/eyerly/splits_preprocessed.lmdb \
+python train_equivariant_cnn.py --lmdb-path /data/eyerly/splits_preprocessed.lmdb \
     --split-file /data/eyerly/pdb_cryoem_splits/splits.json --out-dir runs/equivariant
 ```
 

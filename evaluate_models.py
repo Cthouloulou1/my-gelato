@@ -55,7 +55,7 @@ def load_model_and_dataset(ck, lmdb_path, device):
     kind = ck.get("model_type", "equivariant")
     a = ck["args"]
     if kind == "equivariant":
-        from train_equivariant_cnn_v2 import CAPointCloudDataset, EquivariantPointClassifier
+        from train_equivariant_cnn import CAPointCloudDataset, EquivariantPointClassifier
         model = EquivariantPointClassifier(
             n_classes=N_CLASSES, lmax=a["lmax"], k_neighbors=a["k_neighbors"],
             num_basis=a["num_basis"], max_radius=a["max_radius"])

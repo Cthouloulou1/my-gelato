@@ -2,7 +2,7 @@
 """
 Baseline : CNN 3D standard (non equivariant) sur les cubes de densite
 pretraites (20^3 voxels a 1 A, z-score local), pour comparaison avec le
-modele equivariant SO(3) (train_equivariant_cnn_v2.py).
+modele equivariant SO(3) (train_equivariant_cnn.py).
 
 Memes donnees, meme split par pdb_id, memes poids de classes, meme
 optimiseur / scheduler / critere de selection (macro-F1 val) et memes
@@ -35,7 +35,7 @@ Usage :
         --split-file splits.json --augment continuous \
         --epochs 50 --out-dir runs/cnn_continuous
 
-Sorties : identiques a train_equivariant_cnn_v2.py (history.csv/json,
+Sorties : identiques a train_equivariant_cnn.py (history.csv/json,
 training_curves.png, best_model.pt, val_best_*).
 """
 

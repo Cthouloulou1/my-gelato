@@ -1,59 +1,31 @@
 #!/usr/bin/env python3
 """
-Entraine un classifieur d'acides amines (cubes de densite cryo-EM centres
-sur des CA) avec un reseau de points equivariant SO(3) base sur e3nn.
-Ne depend PAS de escnn / lie_learn.
+Train an amino acid classifier (cryo-EM density cubes centered on C-alpha).
 
-Corrections apportees par rapport a la version precedente
------------------------------------------------------------
-1. EQUIVARIANCE REELLE (et non plus approchee au groupe octaedrique) :
-   le cube est converti en nuage de points a coordonnees CONTINUES et
-   REELLES (position physique en Angstrom des voxels de plus forte
-   densite, relative au CA). Le graphe de voisinage (k plus proches
-   voisins) et les harmoniques spheriques sont recalcules A CHAQUE passage
-   avant (forward), a partir de CES positions reelles -- jamais depuis une
-   grille canonique figee. Resultat : si on fait tourner les positions
-   d'un angle quelconque (pas seulement 90 degres), le graphe tourne avec
-   elles de facon exacte, et la sortie invariante ne change pas (verifie
-   empiriquement : difference relative ~1e-7, soit la precision numerique
-   de torch.float32).
-
-   Limite residuelle (attendue, normale) : le choix des k plus proches
-   voisins est base sur des distances euclidiennes, qui SONT invariantes
-   par rotation -> l'ensemble des voisins de chaque point ne change pas
-   sous rotation (seules les directions des aretes tournent). La seule
-   approximation restante vient de la discretisation initiale cube ->
-   nuage de points (selection des N voxels de plus forte densite), qui
-   est elle-meme faite sur le cube non tourne (donc coherente d'un
-   echantillon a l'autre).
-
-2. EFFONDREMENT DU SIGNAL CORRIGE : le MLP radial utilise desormais
-   e3nn.nn.FullyConnectedNet (normalisation adaptee aux reseaux
-   equivariants) et chaque couche de convolution est suivie d'un
-   e3nn.nn.BatchNorm (equivariant : normalise la norme de chaque irrep,
-   jamais sa direction). Verifie empiriquement : l'ecart-type du signal
-   reste stable (~0.4) a travers les 3 couches, au lieu de s'effondrer
-   d'un facteur ~2500-8000x comme precedemment.
-
-Choix du groupe d'equivariance : SO(3) (rotations propres uniquement,
-sans reflexion), pas O(3), car les acides amines sont tous de chiralite L
--- une invariance aux reflexions confondrait un residu avec son image
-miroir (D-amino acide), qui n'existe pas dans les proteines naturelles.
+Equivariance group : SO(3) (proper rotations only, no reflection), because all amino acids are of L chirality.
 
 Dependances :
-    pip install torch e3nn numpy scipy scikit-learn lmdb tqdm
+    pip install torch e3nn numpy scipy scikit-learn lmdb tqdm matplotlib
 
 Usage :
     python train_equivariant_cnn.py \
         --lmdb-path ca_density_dataset_preprocessed.lmdb \
-        --epochs 50 --batch-size 32 --val-fraction 0.15
+        --split-file splits.json --epochs 50 --batch-size 32 \
+        --out-dir runs/equivariant
+
+Sorties (dans --out-dir) :
+    history.csv / history.json   metriques train+val par epoch (loss, accuracy,
+                                 top3, precision/recall/F1 macro, AUC macro/micro)
+    training_curves.png          courbes correspondantes (mises a jour a chaque epoch)
+    best_model.pt                meilleur checkpoint (macro-F1 val)
+    val_best_*                   matrice de confusion, ROC, AUC par classe,
+                                 rapport par classe du meilleur checkpoint sur le val
 """
 
 import argparse
-import json
+import os
 import pickle
 import random
-from collections import Counter
 
 import lmdb
 import numpy as np
@@ -66,48 +38,30 @@ from e3nn import o3
 from e3nn.nn import NormActivation, BatchNorm, FullyConnectedNet
 from e3nn.math import soft_one_hot_linspace
 
-try:
-    from sklearn.metrics import f1_score, confusion_matrix
-    HAS_SKLEARN = True
-except ImportError:
-    HAS_SKLEARN = False
+from train_utils import (
+    RESIDUE_CLASSES, N_CLASSES, MetricsHistory, compute_class_weights,
+    epoch_metrics, save_final_reports, split_by_pdb_id,
+)
 
-
-RESIDUE_CLASSES = [
-    "ALA", "ARG", "ASN", "ASP", "CYS", "GLN", "GLU", "GLY", "HIS", "ILE",
-    "LEU", "LYS", "MET", "PHE", "PRO", "SER", "THR", "TRP", "TYR", "VAL",
-    "OTHER",
-]
-N_CLASSES = len(RESIDUE_CLASSES)
 
 
 # ---------------------------------------------------------------------------
-# Cube -> nuage de points (coordonnees physiques reelles, en Angstrom)
+# Cube -> point cloud (real physical coordinates, in Angstrom)
 # ---------------------------------------------------------------------------
 
 def cube_to_point_cloud(cube, voxel_spacing, n_points, jitter_std=0.01, rng=None):
-    """Selectionne les n_points voxels de plus forte densite du cube et
-    retourne leurs positions reelles (Angstrom, relatives au centre du
-    cube) et leur valeur de densite. Le choix se fait toujours sur le
-    cube NON tourne : c'est un critere physique (ou se trouve la matiere),
-    independant de l'augmentation par rotation appliquee ensuite.
+    """
+    Select the n most dense voxels and return their real position (Angstrom, relative to the cube center) and their density value.
 
-    Un leger bruit continu (jitter_std, en Angstrom, defaut 0.01 -- cent
-    fois plus petit que l'espacement de voxel typique de 1 A) est ajoute
-    aux positions. Ce n'est PAS pour la regularisation : les positions
-    issues d'une grille de voxels reguliere contiennent de tres nombreuses
-    paires de points a distance EXACTEMENT egale (voisins axiaux,
-    diagonales, etc.), et le choix des k plus proches voisins doit alors
-    departager des ex-aequo. Ce departage n'est pas robuste a la rotation
-    (l'ordre des ex-aequo peut changer avec l'arrondi flottant apres une
-    rotation), ce qui casse l'equivariance de facon mesurable (ecarts
-    relatifs de 1 a 30% observes empiriquement sans jitter, des que
-    n_points est assez grand pour inclure des voxels adjacents). Le jitter
-    rend les distances génériquement distinctes (plus d'ex-aequo exact),
-    ce qui restaure une equivariance a la precision machine (~1e-7),
-    verifie empiriquement."""
+    A continuous noise (jitter_std, in Angstrom, default 0.01 is added to the positions. 
+    This is NOT for regularization: 
+    The positions from a regular voxel grid contain many pairs of points at EXACTLY equal distance (axial neighbors, diagonals, etc.), 
+    The choice of the k nearest neighbors must then break ties, which restores equivariance to machine precision (~1e-7), verified empirically.
+    
+    """
+
     D, H, W = cube.shape
-    assert n_points <= D * H * W, "n_points doit etre <= au nombre de voxels du cube"
+    assert n_points <= D * H * W, "n_points should be less than the number of voxels in the cube"
     rng = rng or np.random
 
     center = np.array([(D - 1) / 2.0, (H - 1) / 2.0, (W - 1) / 2.0])
@@ -125,10 +79,11 @@ def cube_to_point_cloud(cube, voxel_spacing, n_points, jitter_std=0.01, rng=None
 
 
 def random_rotation_matrix(rng=None):
-    """Matrice de rotation 3D uniforme (mesure de Haar), via decomposition
-    QR d'une matrice gaussienne, avec correction de signe pour garantir
-    det=+1 (rotation propre, pas de reflexion -- coherent avec la
-    chiralite des acides amines)."""
+    """
+    Uniform 3D rotation matrix (proper rotation, no reflection, consistent with the chirality of amino acids), 
+    via QR decomposition of a Gaussian matrix,
+    with sign correction to ensure det=+1.
+    """
     rng = rng or np.random
     A = rng.normal(size=(3, 3))
     Q, R = np.linalg.qr(A)
@@ -139,29 +94,23 @@ def random_rotation_matrix(rng=None):
 
 
 # ---------------------------------------------------------------------------
-# Dataset LMDB -> nuages de points
+# Dataset LMDB -> point cloud
 # ---------------------------------------------------------------------------
 
 class CAPointCloudDataset(Dataset):
-    """Dataset lisant le LMDB pretraite (voir preprocess_lmdb.py) et
-    convertissant chaque cube en nuage de points a la volee.
-    Chaque item : pos (n_points,3) Angstrom, feat (n_points,1), label.
-
-    Un seul objet de ce type doit etre cree par chemin LMDB et par
-    processus : lmdb refuse d'ouvrir deux fois le meme fichier dans le
-    meme processus (erreur "already open in this process"). Pour avoir
-    des vues train/val avec une augmentation differente SANS dupliquer
-    l'environnement LMDB, utiliser AugmentedView ci-dessous plutot que de
-    re-instancier CAPointCloudDataset sur le meme chemin."""
+    """
+    Dataset reading the preprocessed LMDB (see preprocess_lmdb.py) and converting each cube into a point cloud on the fly.
+    Each item: pos (n_points,3) in Angstrom, feat (n_points,1), label.
+"""
 
     def __init__(self, lmdb_path, n_points=128, augment=False, jitter_std=0.01):
         self.lmdb_path = lmdb_path
         self.n_points = n_points
         self.augment = augment
         self.jitter_std = jitter_std
-        self.env = None  # ouvert paresseusement (multiprocessing DataLoader)
+        self.env = None  # lazily open (multiprocessing DataLoader)
 
-        # Premiere passe legere (cles + pdb_id + label) pour le split.
+        # First pass (keys + pdb_id + label) for the split.
         env = lmdb.open(lmdb_path, readonly=True, lock=False)
         self.keys = []
         self.pdb_ids = []
@@ -197,12 +146,15 @@ class CAPointCloudDataset(Dataset):
 
         pos, feat = cube_to_point_cloud(cube, spacing, self.n_points, jitter_std=self.jitter_std)
 
+        r = np.linalg.norm(pos, axis=1, keepdims=True).astype(np.float32)   # (n,1)
+        feat = np.concatenate([feat[:, None], r], axis=1)                   # (n,2)
+
         if augment:
             R = random_rotation_matrix()
-            pos = pos @ R.T  # rotation EXACTE, continue, sans interpolation
+            pos = pos @ R.T
 
         pos_t = torch.from_numpy(np.ascontiguousarray(pos))
-        feat_t = torch.from_numpy(np.ascontiguousarray(feat)).unsqueeze(-1)
+        feat_t = torch.from_numpy(np.ascontiguousarray(feat))
         return pos_t, feat_t, label
 
     def __getitem__(self, idx):
@@ -210,10 +162,8 @@ class CAPointCloudDataset(Dataset):
 
 
 class AugmentedView(Dataset):
-    """Vue sur un CAPointCloudDataset PARTAGE (meme environnement LMDB),
-    restreinte a un sous-ensemble d'indices avec son propre indicateur
-    d'augmentation. Permet d'avoir un split train (augmente) et un split
-    val (non augmente) sans ouvrir deux fois le meme LMDB."""
+    """View of a shared CAPointCloudDataset (same LMDB environment), restricted to a subset of indices with its own augmentation flag.
+    Allows having a train split (augmented) and a val split (non-augmented) without opening the same LMDB twice."""
 
     def __init__(self, base_dataset, indices, augment):
         self.base = base_dataset
@@ -228,7 +178,7 @@ class AugmentedView(Dataset):
 
 
 # ---------------------------------------------------------------------------
-# Graphe k-NN par lot (batch disjoint, pas de fuite entre echantillons)
+# K-NN graph by batch (disjoint batch, no leak between samples)
 # ---------------------------------------------------------------------------
 
 def knn_graph_batched(pos, k):
@@ -300,7 +250,7 @@ class PointConvLayer(tnn.Module):
 
 class EquivariantPointClassifier(tnn.Module):
     def __init__(self, n_classes=N_CLASSES, channels=(16, 16, 32), lmax=2,
-                 k_neighbors=16, num_basis=8, max_radius=15.0, dropout=0.3,
+                 k_neighbors=16, num_basis=8, max_radius=6.0, dropout=0.3,
                  activation="sigmoid"):
         super().__init__()
         act_fn = {"sigmoid": torch.sigmoid, "tanh": torch.tanh,
@@ -309,8 +259,8 @@ class EquivariantPointClassifier(tnn.Module):
         self.num_basis = num_basis
         self.max_radius = max_radius
         self.irreps_sh = o3.Irreps.spherical_harmonics(lmax)
-
-        irreps_in = o3.Irreps("1x0e")  # densite scalaire par point
+ 
+        irreps_in = o3.Irreps("2x0e")  # densite scalaire par point
         irreps1 = o3.Irreps(f"{channels[0]}x0e + {channels[0]//2}x1o + {channels[0]//4}x2e")
         irreps2 = o3.Irreps(f"{channels[1]}x0e + {channels[1]//2}x1o + {channels[1]//4}x2e")
         irreps3 = o3.Irreps(f"{channels[2]}x0e + {channels[2]//2}x1o + {channels[2]//4}x2e")
@@ -405,54 +355,18 @@ def check_equivariance(model, pos, feat, device):
 
 
 # ---------------------------------------------------------------------------
-# Split par entree (pdb_id)
-# ---------------------------------------------------------------------------
-
-def split_by_pdb_id(dataset, val_fraction, seed, split_file=None):
-    if split_file:
-        with open(split_file) as f:
-            split = json.load(f)
-        train_ids = set(split["train"])
-        val_ids = set(split["val"])
-    else:
-        unique_ids = sorted(set(dataset.pdb_ids))
-        rng = random.Random(seed)
-        rng.shuffle(unique_ids)
-        n_val = max(1, int(len(unique_ids) * val_fraction))
-        val_ids = set(unique_ids[:n_val])
-        train_ids = set(unique_ids[n_val:])
-
-    train_idx = [i for i, pid in enumerate(dataset.pdb_ids) if pid in train_ids]
-    val_idx = [i for i, pid in enumerate(dataset.pdb_ids) if pid in val_ids]
-    return train_idx, val_idx, sorted(train_ids), sorted(val_ids)
-
-
-def compute_class_weights(labels, n_classes):
-    counts = Counter(labels)
-    total = sum(counts.values())
-    weights = torch.ones(n_classes, dtype=torch.float32)
-    for c in range(n_classes):
-        count = counts.get(c, 0)
-        if count > 0:
-            weights[c] = total / (n_classes * count)
-    return weights
-
-
-# ---------------------------------------------------------------------------
 # Boucle d'entrainement
 # ---------------------------------------------------------------------------
 
-def topk_correct(logits, targets, k):
-    topk = logits.topk(k, dim=1).indices
-    return (topk == targets.unsqueeze(1)).any(dim=1).sum().item()
-
-
 def run_epoch(model, loader, device, criterion, optimizer=None):
+    """Une passe sur `loader`. Retourne (metriques, targets, probs) ; les
+    metriques incluent loss, accuracy, top3, precision/recall/F1 macro et
+    AUC macro/micro (cf. train_utils.epoch_metrics)."""
     is_train = optimizer is not None
     model.train(is_train)
 
-    total_loss, n_samples, top1, top3 = 0.0, 0, 0, 0
-    all_preds, all_targets = [], []
+    total_loss, n_samples = 0.0, 0
+    all_probs, all_targets = [], []
 
     for pos, feat, labels in tqdm(loader, leave=False):
         pos = pos.to(device)
@@ -470,20 +384,13 @@ def run_epoch(model, loader, device, criterion, optimizer=None):
         bs = labels.size(0)
         total_loss += loss.item() * bs
         n_samples += bs
-        top1 += topk_correct(logits, labels, 1)
-        top3 += topk_correct(logits, labels, min(3, logits.size(1)))
-        all_preds.extend(logits.argmax(dim=1).detach().cpu().tolist())
-        all_targets.extend(labels.detach().cpu().tolist())
+        all_probs.append(torch.softmax(logits.detach().float(), dim=1).cpu().numpy())
+        all_targets.append(labels.detach().cpu().numpy())
 
-    metrics = {
-        "loss": total_loss / max(n_samples, 1),
-        "top1_acc": top1 / max(n_samples, 1),
-        "top3_acc": top3 / max(n_samples, 1),
-    }
-    if HAS_SKLEARN and n_samples > 0:
-        metrics["macro_f1"] = f1_score(all_targets, all_preds, average="macro",
-                                        zero_division=0)
-    return metrics, all_preds, all_targets
+    probs = np.concatenate(all_probs) if all_probs else np.zeros((0, N_CLASSES))
+    targets = np.concatenate(all_targets) if all_targets else np.zeros(0, dtype=int)
+    metrics = epoch_metrics(targets, probs, total_loss / max(n_samples, 1))
+    return metrics, targets, probs
 
 
 def main():
@@ -496,9 +403,10 @@ def main():
     parser.add_argument("--weight-decay", type=float, default=1e-4)
     parser.add_argument("--val-fraction", type=float, default=0.15)
     parser.add_argument("--split-file", default=None,
-                         help="JSON {\"train\": [pdb_ids], \"val\": [pdb_ids]} "
-                              "pour imposer un split explicite plutot qu'un "
-                              "split aleatoire par pdb_id")
+                         help="JSON {\"train\": [pdb_ids], \"val\": [pdb_ids], ...} "
+                              "(ex. splits.json de download_datasets.py) pour "
+                              "imposer un split explicite plutot qu'un split "
+                              "aleatoire par pdb_id")
     parser.add_argument("--n-points", type=int, default=128,
                          help="Nombre de voxels (les plus denses) gardes par cube")
     parser.add_argument("--jitter-std", type=float, default=0.01,
@@ -513,17 +421,23 @@ def main():
     parser.add_argument("--max-radius", type=float, default=15.0,
                          help="Portee (Angstrom) de l'embedding radial ; a "
                               "adapter a la taille du cube et a n_points")
-    parser.add_argument("--activation", default="sigmoid",
-                         choices=["sigmoid", "tanh", "silu"],
-                         help="Non-linearite appliquee a la norme de chaque irrep")
     parser.add_argument("--num-workers", type=int, default=4)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--checkpoint", default="best_model.pt")
+    parser.add_argument("--out-dir", default="runs/equivariant",
+                         help="Dossier des sorties : historique par epoch "
+                              "(CSV/JSON/PNG), matrice de confusion, ROC")
+    parser.add_argument("--checkpoint", default=None,
+                         help="Chemin du meilleur checkpoint (defaut : "
+                              "<out-dir>/best_model.pt)")
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--skip-equivariance-check", action="store_true",
                          help="Desactive la verification empirique d'equivariance "
                               "effectuee avant l'entrainement")
     args = parser.parse_args()
+    if args.checkpoint is None:
+        args.checkpoint = os.path.join(args.out_dir, "best_model.pt")
+    os.makedirs(args.out_dir, exist_ok=True)
+    os.makedirs(os.path.dirname(os.path.abspath(args.checkpoint)), exist_ok=True)
 
     random.seed(args.seed)
     np.random.seed(args.seed)
@@ -557,8 +471,9 @@ def main():
     model = EquivariantPointClassifier(
         n_classes=N_CLASSES, lmax=args.lmax, k_neighbors=args.k_neighbors,
         num_basis=args.num_basis, max_radius=args.max_radius,
-        activation=args.activation,
     ).to(device)
+    print(f"Parametres entrainables : "
+          f"{sum(p.numel() for p in model.parameters() if p.requires_grad):,}")
 
     if not args.skip_equivariance_check:
         print("\nVerification empirique de l'equivariance SO(3)...")
@@ -574,47 +489,55 @@ def main():
         optimizer, mode="max", factor=0.5, patience=5
     )
 
+    history = MetricsHistory(args.out_dir, title="Equivariant SO(3) point-cloud classifier")
     best_val_metric = -1.0
 
     for epoch in range(1, args.epochs + 1):
         train_metrics, _, _ = run_epoch(model, train_loader, device, criterion, optimizer)
-        val_metrics, val_preds, val_targets = run_epoch(model, val_loader, device, criterion)
+        val_metrics, _, _ = run_epoch(model, val_loader, device, criterion)
+        history.log(epoch, train_metrics, val_metrics,
+                    lr=optimizer.param_groups[0]["lr"])
 
-        monitor = val_metrics.get("macro_f1", val_metrics["top1_acc"])
+        monitor = val_metrics["f1_macro"]
         scheduler.step(monitor)
 
         print(
             f"Epoch {epoch:03d} | "
-            f"train loss={train_metrics['loss']:.4f} top1={train_metrics['top1_acc']:.3f} | "
-            f"val loss={val_metrics['loss']:.4f} top1={val_metrics['top1_acc']:.3f} "
-            f"top3={val_metrics['top3_acc']:.3f} "
-            + (f"macroF1={val_metrics['macro_f1']:.3f}" if "macro_f1" in val_metrics else "")
+            f"train loss={train_metrics['loss']:.4f} acc={train_metrics['accuracy']:.3f} | "
+            f"val loss={val_metrics['loss']:.4f} acc={val_metrics['accuracy']:.3f} "
+            f"top3={val_metrics['top3_acc']:.3f} P={val_metrics['precision_macro']:.3f} "
+            f"F1={val_metrics['f1_macro']:.3f} AUC={val_metrics.get('auc_macro') or float('nan'):.3f}"
         )
 
         if monitor > best_val_metric:
             best_val_metric = monitor
             torch.save({
+                "model_type": "equivariant",
                 "model_state_dict": model.state_dict(),
                 "epoch": epoch,
                 "val_metrics": val_metrics,
                 "residue_classes": RESIDUE_CLASSES,
                 "train_pdb_ids": train_ids,
                 "val_pdb_ids": val_ids,
+                "train_idx": train_idx,
                 "args": vars(args),
             }, args.checkpoint)
             print(f"  -> nouveau meilleur modele sauvegarde ({args.checkpoint})")
 
     print("\n=== Entrainement termine ===")
-    print(f"Meilleure metrique de validation (macroF1 ou top1) : {best_val_metric:.4f}")
+    print(f"Meilleure macro-F1 de validation : {best_val_metric:.4f}")
 
-    if HAS_SKLEARN:
-        checkpoint = torch.load(args.checkpoint, map_location=device)
-        model.load_state_dict(checkpoint["model_state_dict"])
-        _, val_preds, val_targets = run_epoch(model, val_loader, device, criterion)
-        cm = confusion_matrix(val_targets, val_preds, labels=list(range(N_CLASSES)))
-        print("\nMatrice de confusion (val), lignes = verite, colonnes = prediction :")
-        print("classes:", RESIDUE_CLASSES)
-        print(cm)
+    checkpoint = torch.load(args.checkpoint, map_location=device, weights_only=False)
+    model.load_state_dict(checkpoint["model_state_dict"])
+    _, val_targets, val_probs = run_epoch(model, val_loader, device, criterion)
+    final = save_final_reports(
+        val_targets, val_probs, args.out_dir, "val_best",
+        title=f"Equivariant - val (meilleure epoch {checkpoint['epoch']})",
+        extra={"best_epoch": checkpoint["epoch"]},
+    )
+    print(f"Rapports val (meilleur checkpoint) ecrits dans {args.out_dir} : "
+          f"acc={final['accuracy']:.3f} F1={final['f1_macro']:.3f} "
+          f"AUC macro={final['auc_macro']}")
 
 
 if __name__ == "__main__":
