@@ -5,19 +5,27 @@ Train an amino acid classifier (cryo-EM density cubes centered on C-alpha).
 Equivariance group : SO(3) (proper rotations only, no reflection), because all amino acids are of L chirality.
 
 Dependances :
-    pip install torch e3nn numpy scipy scikit-learn lmdb tqdm
+    pip install torch e3nn numpy scipy scikit-learn lmdb tqdm matplotlib
 
 Usage :
-    python train_equivariant_cnn.py \
+    python train_equivariant_cnn_v2.py \
         --lmdb-path ca_density_dataset_preprocessed.lmdb \
-        --epochs 50 --batch-size 32 --val-fraction 0.15
+        --split-file splits.json --epochs 50 --batch-size 32 \
+        --out-dir runs/equivariant
+
+Sorties (dans --out-dir) :
+    history.csv / history.json   metriques train+val par epoch (loss, accuracy,
+                                 top3, precision/recall/F1 macro, AUC macro/micro)
+    training_curves.png          courbes correspondantes (mises a jour a chaque epoch)
+    best_model.pt                meilleur checkpoint (macro-F1 val)
+    val_best_*                   matrice de confusion, ROC, AUC par classe,
+                                 rapport par classe du meilleur checkpoint sur le val
 """
 
 import argparse
-import json
+import os
 import pickle
 import random
-from collections import Counter
 
 import lmdb
 import numpy as np
@@ -30,19 +38,11 @@ from e3nn import o3
 from e3nn.nn import NormActivation, BatchNorm, FullyConnectedNet
 from e3nn.math import soft_one_hot_linspace
 
-try:
-    from sklearn.metrics import f1_score, confusion_matrix
-    HAS_SKLEARN = True
-except ImportError:
-    HAS_SKLEARN = False
+from train_utils import (
+    RESIDUE_CLASSES, N_CLASSES, MetricsHistory, compute_class_weights,
+    epoch_metrics, save_final_reports, split_by_pdb_id,
+)
 
-
-RESIDUE_CLASSES = [
-    "ALA", "ARG", "ASN", "ASP", "CYS", "GLN", "GLU", "GLY", "HIS", "ILE",
-    "LEU", "LYS", "MET", "PHE", "PRO", "SER", "THR", "TRP", "TYR", "VAL",
-    "OTHER",
-]
-N_CLASSES = len(RESIDUE_CLASSES)
 
 
 # ---------------------------------------------------------------------------
@@ -352,54 +352,18 @@ def check_equivariance(model, pos, feat, device):
 
 
 # ---------------------------------------------------------------------------
-# Split par entree (pdb_id)
-# ---------------------------------------------------------------------------
-
-def split_by_pdb_id(dataset, val_fraction, seed, split_file=None):
-    if split_file:
-        with open(split_file) as f:
-            split = json.load(f)
-        train_ids = set(split["train"])
-        val_ids = set(split["val"])
-    else:
-        unique_ids = sorted(set(dataset.pdb_ids))
-        rng = random.Random(seed)
-        rng.shuffle(unique_ids)
-        n_val = max(1, int(len(unique_ids) * val_fraction))
-        val_ids = set(unique_ids[:n_val])
-        train_ids = set(unique_ids[n_val:])
-
-    train_idx = [i for i, pid in enumerate(dataset.pdb_ids) if pid in train_ids]
-    val_idx = [i for i, pid in enumerate(dataset.pdb_ids) if pid in val_ids]
-    return train_idx, val_idx, sorted(train_ids), sorted(val_ids)
-
-
-def compute_class_weights(labels, n_classes):
-    counts = Counter(labels)
-    total = sum(counts.values())
-    weights = torch.ones(n_classes, dtype=torch.float32)
-    for c in range(n_classes):
-        count = counts.get(c, 0)
-        if count > 0:
-            weights[c] = total / (n_classes * count)
-    return weights
-
-
-# ---------------------------------------------------------------------------
 # Boucle d'entrainement
 # ---------------------------------------------------------------------------
 
-def topk_correct(logits, targets, k):
-    topk = logits.topk(k, dim=1).indices
-    return (topk == targets.unsqueeze(1)).any(dim=1).sum().item()
-
-
 def run_epoch(model, loader, device, criterion, optimizer=None):
+    """Une passe sur `loader`. Retourne (metriques, targets, probs) ; les
+    metriques incluent loss, accuracy, top3, precision/recall/F1 macro et
+    AUC macro/micro (cf. train_utils.epoch_metrics)."""
     is_train = optimizer is not None
     model.train(is_train)
 
-    total_loss, n_samples, top1, top3 = 0.0, 0, 0, 0
-    all_preds, all_targets = [], []
+    total_loss, n_samples = 0.0, 0
+    all_probs, all_targets = [], []
 
     for pos, feat, labels in tqdm(loader, leave=False):
         pos = pos.to(device)
@@ -417,20 +381,13 @@ def run_epoch(model, loader, device, criterion, optimizer=None):
         bs = labels.size(0)
         total_loss += loss.item() * bs
         n_samples += bs
-        top1 += topk_correct(logits, labels, 1)
-        top3 += topk_correct(logits, labels, min(3, logits.size(1)))
-        all_preds.extend(logits.argmax(dim=1).detach().cpu().tolist())
-        all_targets.extend(labels.detach().cpu().tolist())
+        all_probs.append(torch.softmax(logits.detach().float(), dim=1).cpu().numpy())
+        all_targets.append(labels.detach().cpu().numpy())
 
-    metrics = {
-        "loss": total_loss / max(n_samples, 1),
-        "top1_acc": top1 / max(n_samples, 1),
-        "top3_acc": top3 / max(n_samples, 1),
-    }
-    if HAS_SKLEARN and n_samples > 0:
-        metrics["macro_f1"] = f1_score(all_targets, all_preds, average="macro",
-                                        zero_division=0)
-    return metrics, all_preds, all_targets
+    probs = np.concatenate(all_probs) if all_probs else np.zeros((0, N_CLASSES))
+    targets = np.concatenate(all_targets) if all_targets else np.zeros(0, dtype=int)
+    metrics = epoch_metrics(targets, probs, total_loss / max(n_samples, 1))
+    return metrics, targets, probs
 
 
 def main():
@@ -443,9 +400,10 @@ def main():
     parser.add_argument("--weight-decay", type=float, default=1e-4)
     parser.add_argument("--val-fraction", type=float, default=0.15)
     parser.add_argument("--split-file", default=None,
-                         help="JSON {\"train\": [pdb_ids], \"val\": [pdb_ids]} "
-                              "pour imposer un split explicite plutot qu'un "
-                              "split aleatoire par pdb_id")
+                         help="JSON {\"train\": [pdb_ids], \"val\": [pdb_ids], ...} "
+                              "(ex. splits.json de download_datasets.py) pour "
+                              "imposer un split explicite plutot qu'un split "
+                              "aleatoire par pdb_id")
     parser.add_argument("--n-points", type=int, default=128,
                          help="Nombre de voxels (les plus denses) gardes par cube")
     parser.add_argument("--jitter-std", type=float, default=0.01,
@@ -462,12 +420,21 @@ def main():
                               "adapter a la taille du cube et a n_points")
     parser.add_argument("--num-workers", type=int, default=4)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--checkpoint", default="best_model.pt")
+    parser.add_argument("--out-dir", default="runs/equivariant",
+                         help="Dossier des sorties : historique par epoch "
+                              "(CSV/JSON/PNG), matrice de confusion, ROC")
+    parser.add_argument("--checkpoint", default=None,
+                         help="Chemin du meilleur checkpoint (defaut : "
+                              "<out-dir>/best_model.pt)")
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--skip-equivariance-check", action="store_true",
                          help="Desactive la verification empirique d'equivariance "
                               "effectuee avant l'entrainement")
     args = parser.parse_args()
+    if args.checkpoint is None:
+        args.checkpoint = os.path.join(args.out_dir, "best_model.pt")
+    os.makedirs(args.out_dir, exist_ok=True)
+    os.makedirs(os.path.dirname(os.path.abspath(args.checkpoint)), exist_ok=True)
 
     random.seed(args.seed)
     np.random.seed(args.seed)
@@ -502,6 +469,8 @@ def main():
         n_classes=N_CLASSES, lmax=args.lmax, k_neighbors=args.k_neighbors,
         num_basis=args.num_basis, max_radius=args.max_radius,
     ).to(device)
+    print(f"Parametres entrainables : "
+          f"{sum(p.numel() for p in model.parameters() if p.requires_grad):,}")
 
     if not args.skip_equivariance_check:
         print("\nVerification empirique de l'equivariance SO(3)...")
@@ -517,47 +486,55 @@ def main():
         optimizer, mode="max", factor=0.5, patience=5
     )
 
+    history = MetricsHistory(args.out_dir, title="Equivariant SO(3) point-cloud classifier")
     best_val_metric = -1.0
 
     for epoch in range(1, args.epochs + 1):
         train_metrics, _, _ = run_epoch(model, train_loader, device, criterion, optimizer)
-        val_metrics, val_preds, val_targets = run_epoch(model, val_loader, device, criterion)
+        val_metrics, _, _ = run_epoch(model, val_loader, device, criterion)
+        history.log(epoch, train_metrics, val_metrics,
+                    lr=optimizer.param_groups[0]["lr"])
 
-        monitor = val_metrics.get("macro_f1", val_metrics["top1_acc"])
+        monitor = val_metrics["f1_macro"]
         scheduler.step(monitor)
 
         print(
             f"Epoch {epoch:03d} | "
-            f"train loss={train_metrics['loss']:.4f} top1={train_metrics['top1_acc']:.3f} | "
-            f"val loss={val_metrics['loss']:.4f} top1={val_metrics['top1_acc']:.3f} "
-            f"top3={val_metrics['top3_acc']:.3f} "
-            + (f"macroF1={val_metrics['macro_f1']:.3f}" if "macro_f1" in val_metrics else "")
+            f"train loss={train_metrics['loss']:.4f} acc={train_metrics['accuracy']:.3f} | "
+            f"val loss={val_metrics['loss']:.4f} acc={val_metrics['accuracy']:.3f} "
+            f"top3={val_metrics['top3_acc']:.3f} P={val_metrics['precision_macro']:.3f} "
+            f"F1={val_metrics['f1_macro']:.3f} AUC={val_metrics.get('auc_macro') or float('nan'):.3f}"
         )
 
         if monitor > best_val_metric:
             best_val_metric = monitor
             torch.save({
+                "model_type": "equivariant",
                 "model_state_dict": model.state_dict(),
                 "epoch": epoch,
                 "val_metrics": val_metrics,
                 "residue_classes": RESIDUE_CLASSES,
                 "train_pdb_ids": train_ids,
                 "val_pdb_ids": val_ids,
+                "train_idx": train_idx,
                 "args": vars(args),
             }, args.checkpoint)
             print(f"  -> nouveau meilleur modele sauvegarde ({args.checkpoint})")
 
     print("\n=== Entrainement termine ===")
-    print(f"Meilleure metrique de validation (macroF1 ou top1) : {best_val_metric:.4f}")
+    print(f"Meilleure macro-F1 de validation : {best_val_metric:.4f}")
 
-    if HAS_SKLEARN:
-        checkpoint = torch.load(args.checkpoint, map_location=device)
-        model.load_state_dict(checkpoint["model_state_dict"])
-        _, val_preds, val_targets = run_epoch(model, val_loader, device, criterion)
-        cm = confusion_matrix(val_targets, val_preds, labels=list(range(N_CLASSES)))
-        print("\nMatrice de confusion (val), lignes = verite, colonnes = prediction :")
-        print("classes:", RESIDUE_CLASSES)
-        print(cm)
+    checkpoint = torch.load(args.checkpoint, map_location=device, weights_only=False)
+    model.load_state_dict(checkpoint["model_state_dict"])
+    _, val_targets, val_probs = run_epoch(model, val_loader, device, criterion)
+    final = save_final_reports(
+        val_targets, val_probs, args.out_dir, "val_best",
+        title=f"Equivariant - val (meilleure epoch {checkpoint['epoch']})",
+        extra={"best_epoch": checkpoint["epoch"]},
+    )
+    print(f"Rapports val (meilleur checkpoint) ecrits dans {args.out_dir} : "
+          f"acc={final['accuracy']:.3f} F1={final['f1_macro']:.3f} "
+          f"AUC macro={final['auc_macro']}")
 
 
 if __name__ == "__main__":
