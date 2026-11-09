@@ -430,6 +430,10 @@ def main():
                          help="Chemin du meilleur checkpoint (defaut : "
                               "<out-dir>/best_model.pt)")
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    parser.add_argument("--activation", default="sigmoid",
+                         choices=["sigmoid", "tanh", "silu"],
+                         help="Non-linearite appliquee a la norme de chaque irrep "
+                              "(NormActivation)")
     parser.add_argument("--skip-equivariance-check", action="store_true",
                          help="Desactive la verification empirique d'equivariance "
                               "effectuee avant l'entrainement")
@@ -471,6 +475,7 @@ def main():
     model = EquivariantPointClassifier(
         n_classes=N_CLASSES, lmax=args.lmax, k_neighbors=args.k_neighbors,
         num_basis=args.num_basis, max_radius=args.max_radius,
+        activation=args.activation,
     ).to(device)
     print(f"Parametres entrainables : "
           f"{sum(p.numel() for p in model.parameters() if p.requires_grad):,}")

@@ -54,6 +54,7 @@ def main():
     model = EquivariantPointClassifier(
         n_classes=N_CLASSES, lmax=a["lmax"], k_neighbors=a["k_neighbors"],
         num_basis=a["num_basis"], max_radius=a["max_radius"],
+        activation=a.get("activation", "sigmoid"),
     ).to(device)
     model.load_state_dict(ck["model_state_dict"])
     print(f"Checkpoint de l'epoque {ck['epoch']}, "

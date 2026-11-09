@@ -58,7 +58,8 @@ def load_model_and_dataset(ck, lmdb_path, device):
         from train_equivariant_cnn import CAPointCloudDataset, EquivariantPointClassifier
         model = EquivariantPointClassifier(
             n_classes=N_CLASSES, lmax=a["lmax"], k_neighbors=a["k_neighbors"],
-            num_basis=a["num_basis"], max_radius=a["max_radius"])
+            num_basis=a["num_basis"], max_radius=a["max_radius"],
+            activation=a.get("activation", "sigmoid"))
         ds = CAPointCloudDataset(lmdb_path, n_points=a["n_points"], augment=False,
                                  jitter_std=a["jitter_std"])
     elif kind == "cnn3d":
