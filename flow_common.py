@@ -150,6 +150,41 @@ def _build_tables():
 
 ATOM_MASK, TOPO, PERM_SYM, PAIRS, PAIR_KIND, PAIR_VALID = _build_tables()
 
+
+def _build_order():
+    """Ordre de placement du mode autoregressif : parcours en largeur du
+    graphe des liaisons depuis le C-alpha (voisins par numero d'emplacement
+    croissant). ORDER[r, k] = emplacement place en k-ieme (k=0 : C-alpha),
+    RANK = inverse, PARENT[r, s] = atome deja place auquel s est lie
+    (le C-alpha est son propre parent). Emplacements absents : rang 99."""
+    n_res = len(STANDARD)
+    order = np.full((n_res, N_SLOTS), CA_SLOT, dtype=np.int64)
+    rank = np.full((n_res, N_SLOTS), 99, dtype=np.int64)
+    parent = np.full((n_res, N_SLOTS), CA_SLOT, dtype=np.int64)
+    for r, res in enumerate(STANDARD):
+        names = ATOM14[res]
+        idx = {a: i for i, a in enumerate(names)}
+        adj = {i: set() for i in range(len(names))}
+        for a, b in _bonds(res):
+            adj[idx[a]].add(idx[b])
+            adj[idx[b]].add(idx[a])
+        seq, seen, q = [CA_SLOT], {CA_SLOT}, deque([CA_SLOT])
+        while q:
+            u = q.popleft()
+            for v in sorted(adj[u]):
+                if v not in seen:
+                    seen.add(v)
+                    parent[r, v] = u
+                    seq.append(v)
+                    q.append(v)
+        order[r, :len(seq)] = seq
+        rank[r, seq] = np.arange(len(seq))
+    return order, rank, parent
+
+
+ORDER, RANK, PARENT = _build_order()
+N_ATOMS = ATOM_MASK.sum(1)                      # atomes par type (C-alpha compris)
+
 BACKBONE_SLOTS = [0, 2, 3]            # N, C, O (CA fixe)
 SIDECHAIN_SLOTS = list(range(4, N_SLOTS))
 
@@ -261,17 +296,64 @@ def pair_distances(pos, idx):
     return (a - b).norm(dim=-1)
 
 
+def _encode(model, cube):
+    """Features de densite calculees une seule fois par cube si le modele le
+    permet (CNN) : le cube ne change pas pendant l'integration de l'ODE."""
+    return model.encode(cube) if hasattr(model, "encode") else None
+
+
 @torch.no_grad()
 def sample_atoms(model, cube, restype, mask, n_steps, sigma, scale, generator=None):
-    """Integre l'ODE de t=0 (bruit) a t=1 (Euler). Retourne (B,14,3) en A."""
+    """Mode joint : integre l'ODE de t=0 (bruit) a t=1 (Euler) pour tous les
+    atomes a la fois. Retourne (B,14,3) en A."""
     pm = predicted_mask(mask).unsqueeze(-1)
     y = sample_noise(mask, sigma, generator)
     B = y.shape[0]
+    feats = _encode(model, cube)
+    kw = {"feats": feats} if feats is not None else {}
     for s in range(n_steps):
         t = torch.full((B,), s / n_steps, device=y.device)
-        v = model(cube, y, t, restype, mask)
+        v = model(cube, y, t, restype, mask, **kw)
         y = (y + v / n_steps) * pm
     return y * scale
+
+
+def ar_start(ctx, restype, mask, center, sigma_ar, generator=None):
+    """Point de depart du bruit, par atome, en mode autoregressif (unites
+    normalisees) : centre sur le parent (deja place) ou sur le C-alpha."""
+    noise = torch.randn(ctx.shape, device=ctx.device, generator=generator) * sigma_ar
+    if center == "parent":
+        par = torch.as_tensor(PARENT, device=ctx.device)[restype]
+        noise = noise + torch.gather(ctx, 1, par[..., None].expand(-1, -1, 3))
+    return noise * predicted_mask(mask).unsqueeze(-1)
+
+
+@torch.no_grad()
+def sample_atoms_ar(model, cube, restype, mask, n_steps, sigma_ar, scale, center="parent",
+                    generator=None):
+    """Mode autoregressif : les atomes sont places un par un dans l'ordre
+    ORDER (parcours des liaisons depuis le C-alpha) ; chaque atome a son
+    propre flow de t=0 a 1, conditionne sur les atomes deja places."""
+    dev = cube.device
+    B = cube.shape[0]
+    ctx = torch.zeros(B, N_SLOTS, 3, device=dev)        # C-alpha = 0, deja place
+    order = torch.as_tensor(ORDER, device=dev)[restype]
+    n_atoms = torch.as_tensor(N_ATOMS, device=dev)[restype]
+    feats = _encode(model, cube)
+    ar = torch.arange(B, device=dev)
+    for k in range(1, N_SLOTS):
+        active = (n_atoms > k) & mask[ar, order[:, k]]
+        if not active.any():
+            break
+        slot = order[:, k]
+        y = ctx.clone()
+        y[ar, slot] = ar_start(ctx, restype, mask, center, sigma_ar, generator)[ar, slot]
+        for s in range(n_steps):
+            t = torch.full((B, N_SLOTS), s / n_steps, device=dev)
+            v = model(cube, y, t, restype, mask, ctx=ctx, feats=feats)
+            y[ar, slot] = y[ar, slot] + v[ar, slot] / n_steps
+        ctx[ar[active], slot[active]] = y[ar[active], slot[active]]
+    return ctx * scale
 
 
 # ---------------------------------------------------------------------------
@@ -367,19 +449,19 @@ def plot_rmsd_per_restype(per_res, restype, path, title=""):
     ax.grid(axis="y", visible=False)
     y = np.arange(len(rows))
     h = 0.38
-    ax.barh(y - h / 2, [r[2] for r in rows], height=h * 0.92, color=SERIES_ALT[0],
+    ax.barh(y + h / 2, [r[2] for r in rows], height=h * 0.92, color=SERIES_ALT[0],
             label="tous atomes (hors C-alpha)")
-    ax.barh(y + h / 2, [0 if np.isnan(r[3]) else r[3] for r in rows], height=h * 0.92,
+    ax.barh(y - h / 2, [0 if np.isnan(r[3]) else r[3] for r in rows], height=h * 0.92,
             color=SERIES_ALT[1], label="chaine laterale")
     ax.set_yticks(y)
     ax.set_yticklabels([f"{r[0]} (n={r[1]})" for r in rows], fontsize=8)
     xmax = np.nanmax([r[2] for r in rows] + [r[3] for r in rows if not np.isnan(r[3])])
     ax.set_xlim(0, xmax * 1.15)
     for yi, r in zip(y, rows):
-        ax.text(r[2] + xmax * 0.01, yi - h / 2, f"{r[2]:.2f}", va="center", fontsize=6.5,
+        ax.text(r[2] + xmax * 0.01, yi + h / 2, f"{r[2]:.2f}", va="center", fontsize=6.5,
                 color=TEXT_SECONDARY)
     ax.set_xlabel("RMSD moyen (A)")
-    ax.legend(loc="lower right", frameon=False, fontsize=8)
+    ax.legend(loc="lower right", frameon=False, fontsize=8, reverse=True)
     if title:
         ax.set_title(title, loc="left", fontsize=11)
     fig.tight_layout()

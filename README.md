@@ -144,6 +144,23 @@ Par epoch : loss train/val (flow + géométrie) et, sur 2048 résidus val géné
 backbone, chaîne latérale, fraction < 1 Å et erreur sur les liaisons (`history.csv`,
 `training_curves.png`). Meilleur checkpoint : RMSD val le plus bas.
 
+**Mode « un atome à la fois »** (`--autoregressive`, réseau `cnn` uniquement) : au lieu de
+générer tous les atomes ensemble, on les place un par un dans l'ordre d'un parcours des liaisons
+depuis le Cα (N, C, CB, puis O, CG, CD…). Chaque atome a son propre flow, conditionné sur les
+atomes déjà placés.
+
+- Bruit de départ centré sur l'atome parent déjà placé (`--ar-noise-center parent`, par défaut,
+  écart-type `--ar-sigma` = 1.5 Å, une longueur de liaison) ou sur le Cα (`ca`).
+- Entraînement des 13 flows en parallèle avec les vrais atomes précédents. Pour limiter
+  l'accumulation d'erreurs à la génération, `--ar-context-noise 0.1` bruite ces atomes (en Å).
+- Génération environ 13 fois plus d'appels au réseau que le mode joint.
+
+```bash
+python train_flow.py --model cnn --autoregressive --lmdb-path /data/eyerly/splits_preprocessed.lmdb \
+    --atom14 /data/eyerly/splits_atom14.npz \
+    --split-file /data/eyerly/pdb_cryoem_splits/splits.json --epochs 30 --out-dir runs/flow_cnn_ar
+```
+
 ### 3. Évaluation
 
 ```bash
@@ -151,6 +168,7 @@ python evaluate_flow.py --lmdb-path /data/eyerly/splits_preprocessed.lmdb \
     --atom14 /data/eyerly/splits_atom14.npz --splits /data/eyerly/pdb_cryoem_splits/splits.json \
     --model flow_cnn=runs/flow_cnn/best_model.pt \
     --model flow_equi=runs/flow_equivariant/best_model.pt \
+    --model flow_cnn_ar=runs/flow_cnn_ar/best_model.pt \
     --sample-steps 50 --include-val --write-pdb --out-dir runs/evaluation_flow
 ```
 
