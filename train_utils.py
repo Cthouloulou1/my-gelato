@@ -382,10 +382,14 @@ def plot_auc_per_class(roc, path, title="", class_names=RESIDUE_CLASSES):
     ax.axvline(0.5, color=TEXT_SECONDARY, linewidth=1, linestyle="--")
     ax.set_yticks(range(len(items)))
     ax.set_yticklabels(names, fontsize=8)
-    ax.set_xlim(0, 1)
+    # marge a droite de 1.0 pour que l'etiquette tienne toujours apres la
+    # barre (avant : etiquette ecrasee sur le bout des barres proches de 1)
+    ax.set_xlim(0, 1.09)
+    ax.set_xticks(np.linspace(0, 1, 6))
+    ax.spines["bottom"].set_bounds(0, 1)
     ax.set_xlabel("ROC AUC one-vs-rest  (tirets : hasard)")
     for i, a in enumerate(aucs):
-        ax.text(min(a + 0.01, 0.93), i, f"{a:.2f}", va="center", fontsize=7,
+        ax.text(a + 0.012, i, f"{a:.2f}", va="center", ha="left", fontsize=7,
                 color=TEXT_SECONDARY)
     if title:
         ax.set_title(title, loc="left", fontsize=11)
