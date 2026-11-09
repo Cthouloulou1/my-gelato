@@ -1,0 +1,15 @@
+
+=== equivariant (equivariant, epoch 14) ===
+  [val] n= 15393  acc=0.078  top3=0.225  P=0.076  R=0.083  F1=0.062  AUC macro=0.601  micro=0.631
+  [test_1_2A] n= 21579  acc=0.073  top3=0.201  P=0.066  R=0.082  F1=0.058  AUC macro=0.568  micro=0.598
+  [test_2_3A] n= 20205  acc=0.064  top3=0.188  P=0.072  R=0.068  F1=0.046  AUC macro=0.569  micro=0.599
+  [test_3_4A] n= 22775  acc=0.053  top3=0.176  P=0.050  R=0.061  F1=0.039  AUC macro=0.549  micro=0.582
+
+=== cnn_continuous (cnn3d, epoch 50) ===
+  [val] n= 15393  acc=0.738  top3=0.938  P=0.704  R=0.731  F1=0.710  AUC macro=0.981  micro=0.984
+  [test_1_2A] n= 21579  acc=0.722  top3=0.909  P=0.693  R=0.708  F1=0.697  AUC macro=0.976  micro=0.981
+  [test_2_3A] n= 20205  acc=0.407  top3=0.670  P=0.405  R=0.416  F1=0.391  AUC macro=0.878  micro=0.887
+  [test_3_4A] n= 22775  acc=0.281  top3=0.549  P=0.267  R=0.283  F1=0.255  AUC macro=0.801  micro=0.818
+
+Recapitulatif : runs/evaluation/summary.csv
+Comparaison   : runs/evaluation/comparison.png

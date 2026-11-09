@@ -1,0 +1,9 @@
+[SKIP] b'__processed_pdb_ids__': invalid load key, '['.
+
+=== Resume ===
+Echantillons pretraites : 178064
+Echantillons ignores (erreur) : 1
+Espacement cible : 1.0 Ang/voxel
+Taille de cube cible : 20^3
+Normalisation z-score locale : True
+Dataset pretraite ecrit dans : /data/eyerly/splits_preprocessed.lmdb

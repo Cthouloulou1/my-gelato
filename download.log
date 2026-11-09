@@ -1,0 +1,178 @@
+
+Recherche RCSB : 0.0 < resolution PDB <= 2.2 A ...
+  533 candidats ; ensembles a remplir : trainval (100), test_1_2A (20)
+  + 9KU1 (EMD-62572, 1.9 A [emdb]) -> trainval  trainval 1/100 | test_1_2A 0/20
+  + 8B4O (EMD-15851, 2.0 A [emdb]) -> trainval  trainval 2/100 | test_1_2A 0/20
+  + 9JSW (EMD-61785, 1.94 A [emdb]) -> trainval  trainval 3/100 | test_1_2A 0/20
+  + 8P79 (EMD-17522, 1.7 A [emdb]) -> trainval  trainval 4/100 | test_1_2A 0/20
+  + 8DBX (EMD-27316, 1.92 A [emdb]) -> trainval  trainval 5/100 | test_1_2A 0/20
+  + 25SB (EMD-80337, 2.0 A [emdb]) -> trainval  trainval 6/100 | test_1_2A 0/20
+  + 9VI4 (EMD-65077, 1.8 A [emdb]) -> trainval  trainval 7/100 | test_1_2A 0/20
+  + 8Q8C (EMD-18250, 1.92 A [emdb]) -> trainval  trainval 8/100 | test_1_2A 0/20
+  + 8P6X (EMD-17510, 1.9 A [emdb]) -> trainval  trainval 9/100 | test_1_2A 0/20
+  + 9IKC (EMD-60655, 1.9 A [emdb]) -> test_1_2A  trainval 9/100 | test_1_2A 1/20
+  + 7OAE (EMD-12775, 2.0 A [emdb]) -> test_1_2A  trainval 9/100 | test_1_2A 2/20
+  + 8P72 (EMD-17515, 1.9 A [emdb]) -> test_1_2A  trainval 9/100 | test_1_2A 3/20
+  + 9GVC (EMD-51633, 1.82 A [emdb]) -> trainval  trainval 10/100 | test_1_2A 3/20
+  + 8OT6 (EMD-17171, 2.0 A [emdb]) -> test_1_2A  trainval 10/100 | test_1_2A 4/20
+  + 8ZWB (EMD-60522, 1.83 A [emdb]) -> test_1_2A  trainval 10/100 | test_1_2A 5/20
+  + 8D1F (EMD-27128, 1.82 A [emdb]) -> trainval  trainval 11/100 | test_1_2A 5/20
+  + 9FNJ (EMD-50598, 2.0 A [emdb]) -> trainval  trainval 12/100 | test_1_2A 5/20
+  + 9WTW (EMD-66225, 1.98 A [emdb]) -> trainval  trainval 13/100 | test_1_2A 5/20
+  + 8Q9F (EMD-18279, 1.91 A [emdb]) -> trainval  trainval 14/100 | test_1_2A 5/20
+  + 9BT2 (EMD-44880, 1.93 A [emdb]) -> trainval  trainval 15/100 | test_1_2A 5/20
+  + 28XG (EMD-56938, 1.78 A [emdb]) -> trainval  trainval 16/100 | test_1_2A 5/20
+  + 8P6Y (EMD-17511, 1.9 A [emdb]) -> trainval  trainval 17/100 | test_1_2A 5/20
+  + 7KFR (EMD-22854, 1.56 A [emdb]) -> trainval  trainval 18/100 | test_1_2A 5/20
+  + 7A5V (EMD-11657, 1.7 A [emdb]) -> trainval  trainval 19/100 | test_1_2A 5/20
+  + 9UA9 (EMD-63982, 1.99 A [emdb]) -> trainval  trainval 20/100 | test_1_2A 5/20
+  + 8P76 (EMD-17519, 2.0 A [emdb]) -> test_1_2A  trainval 20/100 | test_1_2A 6/20
+  + 9ZB9 (EMD-73979, 1.95 A [emdb]) -> trainval  trainval 21/100 | test_1_2A 6/20
+  + 9C4O (EMD-45192, 1.99 A [emdb]) -> trainval  trainval 22/100 | test_1_2A 6/20
+  + 9Q1D (EMD-72124, 1.75 A [emdb]) -> trainval  trainval 23/100 | test_1_2A 6/20
+  + 8YT4 (EMD-39478, 1.42 A [emdb]) -> test_1_2A  trainval 23/100 | test_1_2A 7/20
+  + 9GMS (EMD-51454, 1.98 A [emdb]) -> trainval  trainval 24/100 | test_1_2A 7/20
+  + 7Z18 (EMD-14444, 1.98 A [emdb]) -> trainval  trainval 25/100 | test_1_2A 7/20
+  + 38LK (EMD-78905, 1.79 A [emdb]) -> test_1_2A  trainval 25/100 | test_1_2A 8/20
+  + 9E80 (EMD-47697, 1.81 A [emdb]) -> trainval  trainval 26/100 | test_1_2A 8/20
+  + 7Z15 (EMD-14441, 1.93 A [emdb]) -> trainval  trainval 27/100 | test_1_2A 8/20
+  + 8Z4V (EMD-39770, 1.7 A [emdb]) -> trainval  trainval 28/100 | test_1_2A 8/20
+  + 7UT7 (EMD-26757, 1.91 A [emdb]) -> trainval  trainval 29/100 | test_1_2A 8/20
+  + 8P75 (EMD-17518, 2.0 A [emdb]) -> trainval  trainval 30/100 | test_1_2A 8/20
+  + 9JSX (EMD-61786, 1.79 A [emdb]) -> trainval  trainval 31/100 | test_1_2A 8/20
+  + 8D1N (EMD-27136, 1.93 A [emdb]) -> trainval  trainval 32/100 | test_1_2A 8/20
+  + 8UXT (EMD-42775, 1.77 A [emdb]) -> trainval  trainval 33/100 | test_1_2A 8/20
+  + 8ZR4 (EMD-60391, 1.9 A [emdb]) -> trainval  trainval 34/100 | test_1_2A 8/20
+  + 9GMT (EMD-51455, 1.93 A [emdb]) -> trainval  trainval 35/100 | test_1_2A 8/20
+  + 9ES7 (EMD-19938, 1.94 A [emdb]) -> trainval  trainval 36/100 | test_1_2A 8/20
+  + 7QKY (EMD-14057, 1.86 A [emdb]) -> trainval  trainval 37/100 | test_1_2A 8/20
+  + 9FUB (EMD-50760, 1.98 A [emdb]) -> trainval  trainval 38/100 | test_1_2A 8/20
+  + 11EE (EMD-75647, 1.87 A [emdb]) -> trainval  trainval 39/100 | test_1_2A 8/20
+  + 9SHM (EMD-54904, 2.0 A [emdb]) -> trainval  trainval 40/100 | test_1_2A 8/20
+  + 9E2V (EMD-47469, 2.0 A [emdb]) -> trainval  trainval 41/100 | test_1_2A 8/20
+  + 8ORM (EMD-17129, 1.9 A [emdb]) -> trainval  trainval 42/100 | test_1_2A 8/20
+  + 8D1E (EMD-27127, 1.78 A [emdb]) -> trainval  trainval 43/100 | test_1_2A 8/20
+  + 7SMK (EMD-25201, 1.98 A [emdb]) -> trainval  trainval 44/100 | test_1_2A 8/20
+  + 8QUO (EMD-18662, 1.94 A [emdb]) -> trainval  trainval 45/100 | test_1_2A 8/20
+  + 9O61 (EMD-70156, 1.68 A [emdb]) -> trainval  trainval 46/100 | test_1_2A 8/20
+  + 9UC6 (EMD-64036, 1.94 A [emdb]) -> test_1_2A  trainval 46/100 | test_1_2A 9/20
+  + 36BT (EMD-77368, 1.85 A [emdb]) -> trainval  trainval 47/100 | test_1_2A 9/20
+  + 7KQ5 (EMD-22992, 2.0 A [emdb]) -> test_1_2A  trainval 47/100 | test_1_2A 10/20
+  + 9EPO (EMD-19881, 1.9 A [emdb]) -> trainval  trainval 48/100 | test_1_2A 10/20
+  + 9XXT (EMD-67374, 2.0 A [emdb]) -> test_1_2A  trainval 48/100 | test_1_2A 11/20
+  + 8PLZ (EMD-17754, 1.9 A [emdb]) -> test_1_2A  trainval 48/100 | test_1_2A 12/20
+  + 9ZC2 (EMD-74020, 1.3 A [emdb]) -> trainval  trainval 49/100 | test_1_2A 12/20
+  + 28XH (EMD-56939, 1.91 A [emdb]) -> test_1_2A  trainval 49/100 | test_1_2A 13/20
+  + 6SAG (EMD-10130, 2.0 A [emdb]) -> trainval  trainval 50/100 | test_1_2A 13/20
+  + 8UEM (EMD-42164, 1.85 A [emdb]) -> trainval  trainval 51/100 | test_1_2A 13/20
+  + 8RWN (EMD-19564, 1.85 A [emdb]) -> trainval  trainval 52/100 | test_1_2A 13/20
+  + 9MWZ (EMD-48705, 2.0 A [emdb]) -> trainval  trainval 53/100 | test_1_2A 13/20
+  + 9WL6 (EMD-66047, 1.95 A [emdb]) -> test_1_2A  trainval 53/100 | test_1_2A 14/20
+  + 9CLJ (EMD-45676, 1.98 A [emdb]) -> trainval  trainval 54/100 | test_1_2A 14/20
+  + 8TO5 (EMD-41435, 1.87 A [emdb]) -> trainval  trainval 55/100 | test_1_2A 14/20
+  + 9KSL (EMD-62552, 1.81 A [emdb]) -> trainval  trainval 56/100 | test_1_2A 14/20
+  + 8P78 (EMD-17521, 1.9 A [emdb]) -> trainval  trainval 57/100 | test_1_2A 14/20
+  + 9HLI (EMD-52255, 2.0 A [emdb]) -> trainval  trainval 58/100 | test_1_2A 14/20
+  + 9X67 (EMD-66617, 1.85 A [emdb]) -> test_1_2A  trainval 58/100 | test_1_2A 15/20
+  + 9NYI (EMD-49920, 1.98 A [emdb]) -> trainval  trainval 59/100 | test_1_2A 15/20
+  + 8DQV (EMD-27661, 1.52 A [emdb]) -> trainval  trainval 60/100 | test_1_2A 15/20
+  + 8J5A (EMD-35984, 1.19 A [emdb]) -> trainval  trainval 61/100 | test_1_2A 15/20
+  + 9YDQ (EMD-72826, 1.94 A [emdb]) -> test_1_2A  trainval 61/100 | test_1_2A 16/20
+  + 9G6C (EMD-51097, 1.8 A [emdb]) -> trainval  trainval 62/100 | test_1_2A 16/20
+  + 9UAR (EMD-63990, 1.99 A [emdb]) -> trainval  trainval 63/100 | test_1_2A 16/20
+  + 38HM (EMD-78820, 1.95 A [emdb]) -> trainval  trainval 64/100 | test_1_2A 16/20
+  + 9CZ0 (EMD-46055, 1.86 A [emdb]) -> trainval  trainval 65/100 | test_1_2A 16/20
+  + 9ECP (EMD-47924, 1.91 A [emdb]) -> trainval  trainval 66/100 | test_1_2A 16/20
+  + 8P71 (EMD-17514, 2.0 A [emdb]) -> trainval  trainval 67/100 | test_1_2A 16/20
+  + 9WMQ (EMD-66101, 1.73 A [emdb]) -> test_1_2A  trainval 67/100 | test_1_2A 17/20
+  + 7EFC (EMD-31083, 1.7 A [emdb]) -> trainval  trainval 68/100 | test_1_2A 17/20
+  + 8OJB (EMD-16910, 1.9 A [emdb]) -> trainval  trainval 69/100 | test_1_2A 17/20
+  + 7UT6 (EMD-26756, 1.91 A [emdb]) -> trainval  trainval 70/100 | test_1_2A 17/20
+  + 9YLR (EMD-73092, 1.99 A [emdb]) -> trainval  trainval 71/100 | test_1_2A 17/20
+  + 36CW (EMD-77393, 1.9 A [emdb]) -> trainval  trainval 72/100 | test_1_2A 17/20
+  + 9OVO (EMD-70904, 1.98 A [emdb]) -> trainval  trainval 73/100 | test_1_2A 17/20
+  + 9GRE (EMD-51522, 2.0 A [emdb]) -> trainval  trainval 74/100 | test_1_2A 17/20
+  + 7TAJ (EMD-25776, 2.0 A [emdb]) -> trainval  trainval 75/100 | test_1_2A 17/20
+  + 11NU (EMD-75871, 1.97 A [emdb]) -> trainval  trainval 76/100 | test_1_2A 17/20
+  + 9JSV (EMD-61784, 1.79 A [emdb]) -> trainval  trainval 77/100 | test_1_2A 17/20
+  + 9Q1B (EMD-72122, 1.74 A [emdb]) -> trainval  trainval 78/100 | test_1_2A 17/20
+  + 7EFD (EMD-31084, 1.77 A [emdb]) -> trainval  trainval 79/100 | test_1_2A 17/20
+  + 11NX (EMD-75874, 1.98 A [emdb]) -> trainval  trainval 80/100 | test_1_2A 17/20
+  + 9DMS (EMD-47014, 1.92 A [emdb]) -> trainval  trainval 81/100 | test_1_2A 17/20
+  + 9TBH (EMD-55771, 1.7 A [emdb]) -> trainval  trainval 82/100 | test_1_2A 17/20
+  + 9THN (EMD-55931, 1.97 A [emdb]) -> trainval  trainval 83/100 | test_1_2A 17/20
+  + 9JSU (EMD-61783, 1.79 A [emdb]) -> trainval  trainval 84/100 | test_1_2A 17/20
+  + 9TBI (EMD-55772, 1.7 A [emdb]) -> test_1_2A  trainval 84/100 | test_1_2A 18/20
+  + 9T0K (EMD-55403, 1.87 A [emdb]) -> trainval  trainval 85/100 | test_1_2A 18/20
+  + 9QFP (EMD-53120, 1.74 A [emdb]) -> trainval  trainval 86/100 | test_1_2A 18/20
+  + 7DY0 (EMD-30913, 1.93 A [emdb]) -> trainval  trainval 87/100 | test_1_2A 18/20
+  + 38LH (EMD-78905, 1.79 A [emdb]) -> test_1_2A  trainval 87/100 | test_1_2A 19/20
+  + 8OJA (EMD-16909, 1.87 A [emdb]) -> trainval  trainval 88/100 | test_1_2A 19/20
+  + 9RAG (EMD-53877, 1.99 A [emdb]) -> trainval  trainval 89/100 | test_1_2A 19/20
+  + 9XDE (EMD-66764, 1.64 A [emdb]) -> trainval  trainval 90/100 | test_1_2A 19/20
+  + 8CF1 (EMD-16615, 1.82 A [emdb]) -> trainval  trainval 91/100 | test_1_2A 19/20
+  + 9B73 (EMD-44299, 1.96 A [emdb]) -> trainval  trainval 92/100 | test_1_2A 19/20
+  + 8P73 (EMD-17516, 2.0 A [emdb]) -> trainval  trainval 93/100 | test_1_2A 19/20
+  + 9RGD (EMD-53948, 2.0 A [emdb]) -> trainval  trainval 94/100 | test_1_2A 19/20
+  + 9HLG (EMD-52253, 2.0 A [emdb]) -> trainval  trainval 95/100 | test_1_2A 19/20
+  + 7MBX (EMD-23749, 1.95 A [emdb]) -> trainval  trainval 96/100 | test_1_2A 19/20
+  + 9MJ1 (EMD-48306, 1.9 A [emdb]) -> test_1_2A  trainval 96/100 | test_1_2A 20/20
+  + 36CP (EMD-77389, 1.9 A [emdb]) -> trainval  trainval 97/100 | test_1_2A 20/20
+  + 8D1H (EMD-27130, 1.94 A [emdb]) -> trainval  trainval 98/100 | test_1_2A 20/20
+  + 8F0J (EMD-28758, 2.0 A [emdb]) -> trainval  trainval 99/100 | test_1_2A 20/20
+  + 8P70 (EMD-17513, 2.0 A [emdb]) -> trainval  trainval 100/100 | test_1_2A 20/20
+
+Recherche RCSB : 1.8 < resolution PDB <= 3.2 A ...
+  10580 candidats ; ensembles a remplir : test_2_3A (20)
+  + 8Q97 (EMD-18270, 2.99 A [emdb]) -> test_2_3A  test_2_3A 1/20
+  + 9K6T (EMD-62135, 2.8 A [emdb]) -> test_2_3A  test_2_3A 2/20
+  + 7UIU (EMD-26553, 2.8 A [emdb]) -> test_2_3A  test_2_3A 3/20
+  + 9UCP (EMD-64050, 2.88 A [emdb]) -> test_2_3A  test_2_3A 4/20
+  + 10PC (EMD-75368, 2.96 A [emdb]) -> test_2_3A  test_2_3A 5/20
+  + 9P94 (EMD-71398, 3.0 A [emdb]) -> test_2_3A  test_2_3A 6/20
+  + 9YFV (EMD-72908, 2.92 A [emdb]) -> test_2_3A  test_2_3A 7/20
+  + 8Z65 (EMD-39792, 2.97 A [emdb]) -> test_2_3A  test_2_3A 8/20
+  + 9EY2 (EMD-50052, 2.96 A [emdb]) -> test_2_3A  test_2_3A 9/20
+  + 8G4H (EMD-29720, 2.87 A [emdb]) -> test_2_3A  test_2_3A 10/20
+  + 8Q8F (EMD-18253, 2.93 A [emdb]) -> test_2_3A  test_2_3A 11/20
+  + 8J6Q (EMD-36011, 2.6 A [emdb]) -> test_2_3A  test_2_3A 12/20
+  + 9PN8 (EMD-71746, 2.96 A [emdb]) -> test_2_3A  test_2_3A 13/20
+  + 8Q8W (EMD-18263, 2.85 A [emdb]) -> test_2_3A  test_2_3A 14/20
+  + 8IOD (EMD-35616, 2.59 A [emdb]) -> test_2_3A  test_2_3A 15/20
+  + 32ED (EMD-58830, 2.86 A [emdb]) -> test_2_3A  test_2_3A 16/20
+  + 8TMG (EMD-41388, 3.0 A [emdb]) -> test_2_3A  test_2_3A 17/20
+  + 8V5A (EMD-42981, 3.0 A [emdb]) -> test_2_3A  test_2_3A 18/20
+  + 6T0R (EMD-10357, 2.82 A [emdb]) -> test_2_3A  test_2_3A 19/20
+  + 7LXW (EMD-23577, 2.8 A [emdb]) -> test_2_3A  test_2_3A 20/20
+
+Recherche RCSB : 2.8 < resolution PDB <= 4.2 A ...
+  14826 candidats ; ensembles a remplir : test_3_4A (20)
+  + 6B0I (EMD-7027, 3.78 A [emdb]) -> test_3_4A  test_3_4A 1/20
+  + 7QCU (EMD-13899, 3.25 A [emdb]) -> test_3_4A  test_3_4A 2/20
+  + 8QBR (EMD-18318, 3.74 A [emdb]) -> test_3_4A  test_3_4A 3/20
+  + 6VXO (EMD-21446, 3.5 A [emdb]) -> test_3_4A  test_3_4A 4/20
+  + 7QBC (EMD-13886, 3.53 A [emdb]) -> test_3_4A  test_3_4A 5/20
+  + 9OCL (EMD-70318, 3.65 A [emdb]) -> test_3_4A  test_3_4A 6/20
+  + 9F0Y (EMD-50118, 3.45 A [emdb]) -> test_3_4A  test_3_4A 7/20
+  + 9S7G (EMD-54641, 3.2 A [emdb]) -> test_3_4A  test_3_4A 8/20
+  + 7XJL (EMD-33231, 3.5 A [emdb]) -> test_3_4A  test_3_4A 9/20
+  + 7BG8 (EMD-12173, 4.0 A [emdb]) -> test_3_4A  test_3_4A 10/20
+  + 9EKB (EMD-48117, 3.65 A [emdb]) -> test_3_4A  test_3_4A 11/20
+  + 8DLN (EMD-27507, 3.04 A [emdb]) -> test_3_4A  test_3_4A 12/20
+  + 7F8J (EMD-31489, 3.6 A [emdb]) -> test_3_4A  test_3_4A 13/20
+  + 8S4U (EMD-19716, 3.09 A [emdb]) -> test_3_4A  test_3_4A 14/20
+  + 8TW9 (EMD-41663, 3.6 A [emdb]) -> test_3_4A  test_3_4A 15/20
+  + 7YK6 (EMD-33888, 3.03 A [emdb]) -> test_3_4A  test_3_4A 16/20
+  + 6L47 (EMD-0831, 3.5 A [emdb]) -> test_3_4A  test_3_4A 17/20
+  + 9DVT (EMD-47222, 3.74 A [emdb]) -> test_3_4A  test_3_4A 18/20
+  + 7TVZ (EMD-26142, 3.6 A [emdb]) -> test_3_4A  test_3_4A 19/20
+  + 7XQJ (EMD-33398, 4.0 A [emdb]) -> test_3_4A  test_3_4A 20/20
+
+=== Resume ===
+  train     : 85 entrees
+  val       : 15 entrees
+  test_1_2A : 20 entrees
+  test_2_3A : 20 entrees
+  test_3_4A : 20 entrees
+  ecartees : 34 (voir rejected.json)
+Fichiers dans : /data/eyerly/pdb_cryoem_splits
