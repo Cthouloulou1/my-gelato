@@ -15,6 +15,11 @@ Deux modèles : un réseau **équivariant SO(3)** (e3nn, nuage de points) et un 
 | `train_cnn_baseline.py` | Entraîne le CNN 3D baseline sur les cubes (augmentation `none` / `octahedral` / `continuous`) |
 | `train_utils.py` | Commun aux deux : split par `pdb_id`, poids de classes, métriques, courbes, matrice de confusion, ROC |
 | `evaluate_models.py` | Évalue un ou plusieurs checkpoints sur les tests, avec un tableau et une figure de comparaison |
+| `extract_atom14.py` | Ajoute à chaque échantillon du LMDB les positions des atomes lourds du résidu (format atom14, relatives au Cα) dans un `.npz` |
+| `flow_common.py` | Flow matching : tables atom14, liaisons, données, rotations conjointes densité/atomes, métriques (RMSD, liaisons), export PDB |
+| `flow_models.py` | Réseaux de champ de vitesse : CNN 3D + transformer, et équivariant e3nn |
+| `train_flow.py` | Entraîne le flow matching des positions atomiques (`--model cnn` ou `equivariant`) |
+| `evaluate_flow.py` | Évalue les modèles de flow sur les tests (RMSD par résolution et par type d'AA, PDB) |
 | `test_model.py` | Évaluation simple d'un checkpoint équivariant sur un JSON `{"test": [...]}` |
 | `diagnostics.py` | Diagnostics : surapprentissage d'un petit lot, baselines simples, hétérogénéité entre cartes, métadonnées |
 | `fetch_emdb_resolution.py` | Récupère la résolution EMDB des cartes présentes dans un LMDB |
@@ -98,3 +103,58 @@ S'y ajoutent `summary.csv` et `comparison.png` (accuracy / F1 / AUC par modèle 
 
 Convention : les moyennes macro (precision, recall, F1, AUC) portent sur les classes
 présentes dans la vérité terrain de l'ensemble évalué.
+
+## Prédiction des positions atomiques (flow matching)
+
+À partir du cube de densité centré sur un Cα connu et du type d'acide aminé connu, on génère
+les positions de tous les atomes lourds du résidu (backbone N, C, O et chaîne latérale, format
+atom14, relatives au Cα).
+
+- **Flow matching** (interpolation linéaire) : y_t = (1−t)·bruit + t·structure, le réseau prédit
+  la vitesse v ≈ structure − bruit. La génération intègre l'ODE de t = 0 à 1 (Euler).
+- **Contraintes chimiques** : une loss géométrique pénalise l'écart des distances 1-2 (liaisons) et
+  1-3 (angles) de la structure finale estimée x̂₁ = y_t + (1−t)·v (`--geom-weight`, 0 pour la
+  désactiver). Les réseaux reçoivent aussi la topologie des liaisons : biais d'attention pour le
+  transformer, arêtes typées pour le modèle e3nn.
+- **Réseaux** : `cnn` (CNN 3D + transformer, rotations aléatoires conjointes densité + atomes) ou
+  `equivariant` (e3nn, SE(3)-équivariant par construction).
+
+### 1. Coordonnées des atomes (une fois, à partir du LMDB et des `.cif` existants)
+
+```bash
+python extract_atom14.py --lmdb-path /data/eyerly/splits_preprocessed.lmdb \
+    --cif-dir /data/eyerly/pdb_cryoem_splits --out /data/eyerly/splits_atom14.npz
+```
+
+### 2. Entraînement
+
+```bash
+python train_flow.py --model cnn --lmdb-path /data/eyerly/splits_preprocessed.lmdb \
+    --atom14 /data/eyerly/splits_atom14.npz \
+    --split-file /data/eyerly/pdb_cryoem_splits/splits.json --epochs 30 --out-dir runs/flow_cnn
+```
+
+```bash
+python train_flow.py --model equivariant --lmdb-path /data/eyerly/splits_preprocessed.lmdb \
+    --atom14 /data/eyerly/splits_atom14.npz --batch-size 16 \
+    --split-file /data/eyerly/pdb_cryoem_splits/splits.json --epochs 30 --out-dir runs/flow_equivariant
+```
+
+Par epoch : loss train/val (flow + géométrie) et, sur 2048 résidus val générés, RMSD tous atomes,
+backbone, chaîne latérale, fraction < 1 Å et erreur sur les liaisons (`history.csv`,
+`training_curves.png`). Meilleur checkpoint : RMSD val le plus bas.
+
+### 3. Évaluation
+
+```bash
+python evaluate_flow.py --lmdb-path /data/eyerly/splits_preprocessed.lmdb \
+    --atom14 /data/eyerly/splits_atom14.npz --splits /data/eyerly/pdb_cryoem_splits/splits.json \
+    --model flow_cnn=runs/flow_cnn/best_model.pt \
+    --model flow_equi=runs/flow_equivariant/best_model.pt \
+    --sample-steps 50 --include-val --write-pdb --out-dir runs/evaluation_flow
+```
+
+Sorties par modèle et ensemble : métriques, RMSD par type d'AA (CSV + PNG), courbe cumulative des
+RMSD, et avec `--write-pdb` un fichier `<PDB>_pred.pdb` et `<PDB>_true.pdb` par entrée à ouvrir avec
+la carte dans ChimeraX. RMSD : atomes lourds hors Cα ; pour ASP, GLU, PHE et TYR, la meilleure des
+deux numérotations des atomes symétriques est retenue.

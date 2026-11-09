@@ -219,9 +219,11 @@ class MetricsHistory:
     disque (history.csv, history.json, training_curves.png) a chaque appel
     de `log`, pour pouvoir suivre un entrainement en cours."""
 
-    def __init__(self, out_dir, title=""):
+    def __init__(self, out_dir, title="", curves=None, lower_better=("loss",)):
         self.out_dir = out_dir
         self.title = title
+        self.curves = curves or CURVE_METRICS
+        self.lower_better = set(lower_better)
         self.rows = []
         os.makedirs(out_dir, exist_ok=True)
 
@@ -249,11 +251,11 @@ class MetricsHistory:
         with open(os.path.join(self.out_dir, "history.json"), "w") as f:
             json.dump(self.rows, f, indent=2)
         plot_training_curves(self.rows, os.path.join(self.out_dir, "training_curves.png"),
-                             self.title)
+                             self.title, self.curves, self.lower_better)
 
 
-def plot_training_curves(rows, path, title=""):
-    metrics = [(k, lab) for k, lab in CURVE_METRICS
+def plot_training_curves(rows, path, title="", curves=None, lower_better=("loss",)):
+    metrics = [(k, lab) for k, lab in (curves or CURVE_METRICS)
                if any(f"train_{k}" in r or f"val_{k}" in r for r in rows)]
     if not metrics:
         return
@@ -276,7 +278,7 @@ def plot_training_curves(rows, path, title=""):
         vals = [(r["epoch"], r.get(f"val_{key}")) for r in rows
                 if r.get(f"val_{key}") is not None]
         if vals:
-            best = min(vals, key=lambda t: t[1]) if key == "loss" else max(vals, key=lambda t: t[1])
+            best = (min if key in lower_better else max)(vals, key=lambda t: t[1])
             ax.annotate(f"best {best[1]:.3f}", best, textcoords="offset points",
                         xytext=(0, 8), ha="center", fontsize=7, color=TEXT_SECONDARY,
                         bbox=dict(boxstyle="round,pad=0.15", fc=SURFACE, ec="none"))
@@ -457,6 +459,8 @@ def plot_model_comparison(summary_rows, path, metric_keys=("accuracy", "f1_macro
     for ax, key in zip(axes.ravel(), metric_keys):
         _style_axes(ax)
         ax.grid(axis="x", visible=False)
+        vals = [r[key] for r in summary_rows if r.get(key) is not None]
+        top = max(vals) if vals else 1.0
         for mi, model in enumerate(models):
             xs, ys = [], []
             for di, ds in enumerate(datasets):
@@ -468,11 +472,11 @@ def plot_model_comparison(summary_rows, path, metric_keys=("accuracy", "f1_macro
             color = SERIES_ALT[mi % len(SERIES_ALT)]
             ax.bar(xs, ys, width=width * 0.92, color=color, label=model)
             for x, y in zip(xs, ys):
-                ax.text(x, y + 0.01, f"{y:.2f}", ha="center", fontsize=7,
+                ax.text(x, y + 0.01 * max(1.0, top), f"{y:.2f}", ha="center", fontsize=7,
                         color=TEXT_SECONDARY)
         ax.set_xticks(range(len(datasets)))
         ax.set_xticklabels(datasets, fontsize=8)
-        ax.set_ylim(0, 1.05)
+        ax.set_ylim(0, 1.05 if top <= 1.0 else top * 1.18)
         ax.set_title(key, loc="left", fontsize=10)
     handles, labels = axes.ravel()[0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="upper right", frameon=False,
