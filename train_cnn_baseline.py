@@ -262,7 +262,7 @@ def run_epoch(model, loader, device, criterion, optimizer=None,
         total_loss += loss.item() * y.size(0)
         n += y.size(0)
         all_probs.append(torch.softmax(logits.detach().float(), dim=1).cpu().numpy())
-        all_targets.append(y.cpu().numpy())
+        all_targets.append(y.cpu().numpy().copy())
     probs = np.concatenate(all_probs) if all_probs else np.zeros((0, N_CLASSES))
     targets = np.concatenate(all_targets) if all_targets else np.zeros(0, dtype=int)
     return epoch_metrics(targets, probs, total_loss / max(n, 1)), targets, probs

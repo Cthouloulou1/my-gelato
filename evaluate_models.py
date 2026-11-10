@@ -45,7 +45,7 @@ def predict(model, loader, device, kind):
             x, y = batch
             logits = model(x.to(device))
         probs.append(torch.softmax(logits.float(), dim=1).cpu().numpy())
-        targets.append(y.numpy())
+        targets.append(y.numpy().copy())  # copie : libere la memoire partagee du worker
     if not probs:
         return np.zeros(0, dtype=int), np.zeros((0, N_CLASSES))
     return np.concatenate(targets), np.concatenate(probs)

@@ -200,10 +200,10 @@ def generate(model, loader, args, device, seed=0, mask_t=None, desc=None):
             pred = sample_atoms(model, cube, restype, mask, args.sample_steps, args.sigma,
                                 args.coord_scale, gen)
         preds.append(pred.cpu().numpy())
-        gts.append(pos.numpy())
-        masks.append(mask.cpu().numpy())
-        rts.append(restype.cpu().numpy())
-        idxs.append(idx.numpy())
+        gts.append(pos.numpy().copy())  # copies : liberent la memoire partagee des workers
+        masks.append(mask.cpu().numpy().copy())
+        rts.append(restype.cpu().numpy().copy())
+        idxs.append(idx.numpy().copy())
     return (np.concatenate(preds), np.concatenate(gts), np.concatenate(masks),
             np.concatenate(rts), np.concatenate(idxs))
 
