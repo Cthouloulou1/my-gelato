@@ -20,6 +20,8 @@ Deux modèles : un réseau **équivariant SO(3)** (e3nn, nuage de points) et un 
 | `flow_models.py` | Réseaux de champ de vitesse : CNN 3D + transformer, et équivariant e3nn |
 | `train_flow.py` | Entraîne le flow matching des positions atomiques (`--model cnn` ou `equivariant`) |
 | `evaluate_flow.py` | Évalue les modèles de flow sur les tests (RMSD par résolution et par type d'AA, PDB) |
+| `merge_evaluations.py` | Regroupe plusieurs dossiers d'évaluation en une comparaison (tables par métrique, Markdown, figure), sans relancer d'inférence |
+| `replot_reports.py` | Régénère confusion / ROC / AUC par classe à partir des `*_predictions.npz`, sans relancer d'inférence |
 | `test_model.py` | Évaluation simple d'un checkpoint équivariant sur un JSON `{"test": [...]}` |
 | `diagnostics.py` | Diagnostics : surapprentissage d'un petit lot, baselines simples, hétérogénéité entre cartes, métadonnées |
 | `fetch_emdb_resolution.py` | Récupère la résolution EMDB des cartes présentes dans un LMDB |
@@ -100,6 +102,18 @@ python evaluate_models.py --lmdb-path /data/eyerly/splits_preprocessed.lmdb \
 
 Pour chaque modèle et chaque ensemble : matrice de confusion, ROC, AUC par classe et métriques.
 S'y ajoutent `summary.csv` et `comparison.png` (accuracy / F1 / AUC par modèle et par résolution).
+
+Pour comparer des modèles évalués à des moments différents (plusieurs dossiers), sans rien
+recalculer :
+
+```bash
+python merge_evaluations.py runs/evaluation runs/evaluation_v2 runs/evaluation_equi \
+    --rename cnn_continuous=cnn_e50 --rename equivariant=equi_origine --out-dir runs/evaluation_all
+```
+
+Un même modèle présent dans deux dossiers n'est gardé qu'une fois. Sorties : `summary.csv`,
+`table_<métrique>.csv` (modèles en lignes, ensembles en colonnes), `summary.md`, `comparison.png`.
+Fonctionne aussi avec les dossiers de `evaluate_flow.py`.
 
 Convention : les moyennes macro (precision, recall, F1, AUC) portent sur les classes
 présentes dans la vérité terrain de l'ensemble évalué.
