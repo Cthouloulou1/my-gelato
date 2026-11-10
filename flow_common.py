@@ -185,6 +185,59 @@ def _build_order():
 ORDER, RANK, PARENT = _build_order()
 N_ATOMS = ATOM_MASK.sum(1)                      # atomes par type (C-alpha compris)
 
+# Blocs du mode autoregressif (--ar-groups) : les atomes d'un meme bloc sont
+# places ENSEMBLE (un seul flow joint), les blocs les uns apres les autres.
+#   atom     : un atome par bloc (ordre ORDER)
+#   backbone : N, C, O, CB d'un coup, puis la chaine laterale atome par atome
+#   hybrid   : backbone comme ci-dessus, et chaque cycle d'un coup (atomes du
+#              cycle, azotes compris : PHE/TYR benzene, HIS imidazole, TRP indole
+#              entier, PRO CG+CD qui ferment le cycle sur N)
+AR_GROUPS = ("atom", "backbone", "hybrid")
+_BACKBONE_BLOCK = ("N", "C", "O", "CB")
+_RING_BLOCKS = {
+    "PHE": ("CG", "CD1", "CD2", "CE1", "CE2", "CZ"),
+    "TYR": ("CG", "CD1", "CD2", "CE1", "CE2", "CZ"),
+    "HIS": ("CG", "ND1", "CD2", "CE1", "NE2"),
+    "TRP": ("CG", "CD1", "CD2", "NE1", "CE2", "CE3", "CZ2", "CZ3", "CH2"),
+    "PRO": ("CG", "CD"),
+}
+
+
+def _build_steps(groups):
+    """STEP[r, s] = numero du bloc de l'atome s (C-alpha : 0, absent : 99) ;
+    ANCHOR[r, s] = atome deja place (bloc anterieur) le plus proche dans
+    l'arbre des liaisons : centre du bruit de depart (--ar-noise-center parent).
+    Pour groups='atom' : STEP = RANK, ANCHOR = PARENT."""
+    if groups not in AR_GROUPS:
+        raise ValueError(f"ar_groups inconnu : {groups}")
+    step = np.full((len(STANDARD), N_SLOTS), 99, dtype=np.int64)
+    anchor = PARENT.copy()
+    for r, res in enumerate(STANDARD):
+        names = ATOM14[res]
+        blocks = []
+        if groups != "atom":
+            blocks.append({names.index(a) for a in _BACKBONE_BLOCK if a in names})
+        if groups == "hybrid" and res in _RING_BLOCKS:
+            blocks.append({names.index(a) for a in _RING_BLOCKS[res]})
+        step[r, CA_SLOT] = 0
+        k = 0
+        for s in ORDER[r, 1:N_ATOMS[r]]:          # parcours des liaisons depuis le CA
+            if step[r, s] != 99:
+                continue
+            k += 1
+            blk = next((b for b in blocks if s in b), {s})
+            for a in blk:
+                step[r, a] = k
+        for s in range(len(names)):
+            a = PARENT[r, s]
+            while step[r, a] >= step[r, s] and a != CA_SLOT:
+                a = PARENT[r, a]
+            anchor[r, s] = a
+    return step, anchor
+
+
+AR_STEPS = {g: _build_steps(g) for g in AR_GROUPS}    # {groups: (STEP, ANCHOR)}
+
 BACKBONE_SLOTS = [0, 2, 3]            # N, C, O (CA fixe)
 SIDECHAIN_SLOTS = list(range(4, N_SLOTS))
 
@@ -318,41 +371,48 @@ def sample_atoms(model, cube, restype, mask, n_steps, sigma, scale, generator=No
     return y * scale
 
 
-def ar_start(ctx, restype, mask, center, sigma_ar, generator=None):
+def ar_tables(groups, device):
+    """(STEP, ANCHOR) en tenseurs, pour un mode de blocs."""
+    step, anchor = AR_STEPS[groups]
+    return torch.as_tensor(step, device=device), torch.as_tensor(anchor, device=device)
+
+
+def ar_start(ctx, restype, mask, center, sigma_ar, generator=None, groups="atom"):
     """Point de depart du bruit, par atome, en mode autoregressif (unites
-    normalisees) : centre sur le parent (deja place) ou sur le C-alpha."""
+    normalisees) : centre sur l'atome deja place le plus proche dans l'arbre
+    des liaisons (le parent en mode 'atom', cf. ANCHOR) ou sur le C-alpha."""
     noise = torch.randn(ctx.shape, device=ctx.device, generator=generator) * sigma_ar
     if center == "parent":
-        par = torch.as_tensor(PARENT, device=ctx.device)[restype]
-        noise = noise + torch.gather(ctx, 1, par[..., None].expand(-1, -1, 3))
+        anc = ar_tables(groups, ctx.device)[1][restype]
+        noise = noise + torch.gather(ctx, 1, anc[..., None].expand(-1, -1, 3))
     return noise * predicted_mask(mask).unsqueeze(-1)
 
 
 @torch.no_grad()
 def sample_atoms_ar(model, cube, restype, mask, n_steps, sigma_ar, scale, center="parent",
-                    generator=None):
-    """Mode autoregressif : les atomes sont places un par un dans l'ordre
-    ORDER (parcours des liaisons depuis le C-alpha) ; chaque atome a son
-    propre flow de t=0 a 1, conditionne sur les atomes deja places."""
+                    generator=None, groups="atom"):
+    """Mode autoregressif : les blocs d'atomes (un atome par bloc en mode
+    'atom', cf. AR_STEPS) sont places l'un apres l'autre depuis le C-alpha ;
+    chaque bloc a son propre flow de t=0 a 1 (joint sur les atomes du bloc),
+    conditionne sur les atomes deja places."""
     dev = cube.device
     B = cube.shape[0]
     ctx = torch.zeros(B, N_SLOTS, 3, device=dev)        # C-alpha = 0, deja place
-    order = torch.as_tensor(ORDER, device=dev)[restype]
-    n_atoms = torch.as_tensor(N_ATOMS, device=dev)[restype]
+    step = ar_tables(groups, dev)[0][restype]
+    pm = predicted_mask(mask)
     feats = _encode(model, cube)
-    ar = torch.arange(B, device=dev)
-    for k in range(1, N_SLOTS):
-        active = (n_atoms > k) & mask[ar, order[:, k]]
-        if not active.any():
-            break
-        slot = order[:, k]
-        y = ctx.clone()
-        y[ar, slot] = ar_start(ctx, restype, mask, center, sigma_ar, generator)[ar, slot]
+    n_blocks = int(step.masked_fill(~pm, 0).max()) if pm.any() else 0
+    for k in range(1, n_blocks + 1):
+        sel = ((step == k) & pm).unsqueeze(-1)          # (B,14,1)
+        if not sel.any():
+            continue
+        y = torch.where(sel, ar_start(ctx, restype, mask, center, sigma_ar, generator,
+                                      groups), ctx)
         for s in range(n_steps):
             t = torch.full((B, N_SLOTS), s / n_steps, device=dev)
             v = model(cube, y, t, restype, mask, ctx=ctx, feats=feats)
-            y[ar, slot] = y[ar, slot] + v[ar, slot] / n_steps
-        ctx[ar[active], slot[active]] = y[ar[active], slot[active]]
+            y = y + sel * v / n_steps
+        ctx = torch.where(sel, y, ctx)
     return ctx * scale
 
 

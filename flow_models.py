@@ -30,7 +30,7 @@ import torch
 import torch.nn as tnn
 import torch.nn.functional as F
 
-from flow_common import N_SLOTS, RANK, TOPO, pair_tensors, predicted_mask
+from flow_common import AR_STEPS, N_SLOTS, TOPO, pair_tensors, predicted_mask
 
 
 class TimeEmbedding(tnn.Module):
@@ -101,10 +101,14 @@ class CNNFlowNet(tnn.Module):
     generees a l'inference). Jetons de REQUETE = position bruitee de chaque
     atome, avec son propre temps t_k. La requete de l'atome de rang k ne voit
     que le contexte des atomes de rang < k (et elle-meme) : les 13 petits flows
-    s'entrainent en parallele dans une seule passe."""
+    s'entrainent en parallele dans une seule passe.
+    ar_groups ('atom', 'backbone', 'hybrid', cf. flow_common.AR_STEPS) : les
+    atomes d'un meme bloc forment un flow joint (meme temps t, leurs requetes
+    se voient entre elles) ; le rang ci-dessus devient le numero du bloc."""
 
     def __init__(self, coord_scale=4.0, cube_size=20, voxel=1.0, channels=(32, 64, 128),
-                 d_model=128, n_layers=4, n_heads=4, dropout=0.0, autoregressive=False):
+                 d_model=128, n_layers=4, n_heads=4, dropout=0.0, autoregressive=False,
+                 ar_groups="atom"):
         super().__init__()
         assert cube_size % 4 == 0
         self.coord_scale = coord_scale
@@ -112,7 +116,8 @@ class CNNFlowNet(tnn.Module):
         self.autoregressive = autoregressive
         if autoregressive:
             self.role_emb = tnn.Embedding(2, d_model)  # 0 contexte, 1 requete
-        self.register_buffer("rank", torch.as_tensor(RANK), persistent=False)
+        self.ar_groups = ar_groups
+        self.register_buffer("rank", torch.as_tensor(AR_STEPS[ar_groups][0]), persistent=False)
         c1, c2, c3 = channels
         self.enc1 = _conv_block(1, c1)
         self.enc2 = _conv_block(c1, c2)
@@ -161,7 +166,8 @@ class CNNFlowNet(tnn.Module):
         return self.out(h) * predicted_mask(mask).unsqueeze(-1)
 
     def _forward_ar(self, feats, y_t, t, restype, mask, ctx):
-        """t (B,14) : un temps par atome ; ctx (B,14,3) : positions placees."""
+        """t (B,14) : un temps par atome (identique dans un bloc) ;
+        ctx (B,14,3) : positions placees."""
         B = y_t.shape[0]
         dev = y_t.device
         glob = feats[2][:, None, :]
@@ -170,13 +176,14 @@ class CNNFlowNet(tnn.Module):
              + self.time_emb(t.reshape(-1)).view(B, N_SLOTS, -1))
         h = torch.cat([c, q], 1)                                          # (B,28,d)
 
-        rk = self.rank[restype]                                           # (B,14)
+        rk = self.rank[restype]                                           # (B,14) bloc
         before = rk[:, None, :] < rk[:, :, None]                          # j place avant i
+        same = rk[:, None, :] == rk[:, :, None]                           # meme bloc
         eye = torch.eye(N_SLOTS, dtype=torch.bool, device=dev)
         present = mask[:, None, :]
-        allow_cc = (before | eye) & present                               # contexte causal
+        allow_cc = (before | same) & present | eye                        # contexte causal
         allow_qc = before & present                                       # requete -> contexte
-        allow_qq = eye.expand(B, -1, -1)                                  # requete -> elle-meme
+        allow_qq = same & present | eye                                   # requetes du bloc
         allow_cq = torch.zeros_like(allow_cc)
         allow = torch.cat([torch.cat([allow_cc, allow_cq], 2),
                            torch.cat([allow_qc, allow_qq], 2)], 1)        # (B,28,28)
@@ -296,7 +303,7 @@ class EquivariantFlowNet(tnn.Module):
 
 MODEL_KWARGS = {
     "cnn": ("coord_scale", "channels", "d_model", "n_layers", "n_heads", "dropout",
-            "autoregressive"),
+            "autoregressive", "ar_groups"),
     "equivariant": ("coord_scale", "n_density", "k_neighbors", "max_radius", "num_basis",
                     "lmax", "eq_channels", "activation"),
 }
@@ -308,7 +315,8 @@ def build_flow_model(kind, a):
         return CNNFlowNet(coord_scale=a["coord_scale"], channels=tuple(a["channels"]),
                           d_model=a["d_model"], n_layers=a["n_layers"],
                           n_heads=a["n_heads"], dropout=a["dropout"],
-                          autoregressive=a.get("autoregressive", False))
+                          autoregressive=a.get("autoregressive", False),
+                          ar_groups=a.get("ar_groups") or "atom")
     if kind == "equivariant":
         if a.get("autoregressive"):
             raise ValueError("le mode autoregressif n'existe que pour --model cnn")
