@@ -175,6 +175,10 @@ GRID = "#e4e3df"
 NEUTRAL_MARK = "#a8a7a1"
 SERIES = {"train": "#2a78d6", "val": "#eb6834"}   # slots categoriels 1 et 2
 SERIES_ALT = ["#2a78d6", "#eb6834", "#1baf7a"]     # 3 premiers slots (all-pairs OK)
+# palette categorielle complete (ordre fixe, valide pour des marques adjacentes :
+# barres groupees). Au-dela de 8 series : pas de couleur generee.
+CATEGORICAL = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300",
+               "#6250d6", "#e34948"]
 SEQ_BLUE = ["#fcfcfb", "#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5",
             "#256abf", "#184f95", "#0d366b"]
 SEQ_CMAP = LinearSegmentedColormap.from_list("seq_blue", SEQ_BLUE)
@@ -448,12 +452,18 @@ def save_final_reports(targets, probs, out_dir, prefix, title="",
 def plot_model_comparison(summary_rows, path, metric_keys=("accuracy", "f1_macro", "auc_macro")):
     """summary_rows : liste de dicts {"model", "dataset", <metriques>}.
     Une petite multiple par metrique, barres groupees par dataset, une
-    couleur par modele (<= 3 modeles)."""
+    couleur fixe par modele, dans l'ordre de la palette (<= 8 modeles)."""
     models = list(dict.fromkeys(r["model"] for r in summary_rows))
     datasets = list(dict.fromkeys(r["dataset"] for r in summary_rows))
     if not models or not datasets:
         return
-    fig, axes = _new_fig(1, len(metric_keys), figsize=(4.4 * len(metric_keys), 3.6),
+    if len(models) > len(CATEGORICAL):
+        raise ValueError(f"{len(models)} modeles : au plus {len(CATEGORICAL)} par figure "
+                         f"(faire plusieurs comparaisons)")
+    width_per = max(4.4, 0.45 * len(models) * len(datasets) + 1.2)
+    ncols = len(metric_keys) if len(metric_keys) <= 3 else 2
+    nrows = -(-len(metric_keys) // ncols)
+    fig, axes = _new_fig(nrows, ncols, figsize=(width_per * ncols, 3.6 * nrows + 0.4),
                          squeeze=False)
     width = 0.8 / len(models)
     for ax, key in zip(axes.ravel(), metric_keys):
@@ -469,18 +479,22 @@ def plot_model_comparison(summary_rows, path, metric_keys=("accuracy", "f1_macro
                 if r is not None and r.get(key) is not None:
                     xs.append(di + (mi - (len(models) - 1) / 2) * width)
                     ys.append(r[key])
-            color = SERIES_ALT[mi % len(SERIES_ALT)]
+            color = CATEGORICAL[mi]
             ax.bar(xs, ys, width=width * 0.92, color=color, label=model)
-            for x, y in zip(xs, ys):
-                ax.text(x, y + 0.01 * max(1.0, top), f"{y:.2f}", ha="center", fontsize=7,
-                        color=TEXT_SECONDARY)
+            if len(models) <= 4:   # au-dela, etiquettes illisibles : voir le CSV
+                for x, y in zip(xs, ys):
+                    ax.text(x, y + 0.01 * max(1.0, top), f"{y:.2f}", ha="center",
+                            fontsize=7, color=TEXT_SECONDARY)
         ax.set_xticks(range(len(datasets)))
         ax.set_xticklabels(datasets, fontsize=8)
         ax.set_ylim(0, 1.05 if top <= 1.0 else top * 1.18)
         ax.set_title(key, loc="left", fontsize=10)
     handles, labels = axes.ravel()[0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="upper right", frameon=False,
-               ncol=len(models), labelcolor=TEXT_PRIMARY)
-    fig.tight_layout(rect=(0, 0, 1, 0.9))
+               ncol=min(len(models), 4), labelcolor=TEXT_PRIMARY)
+    for ax in axes.ravel()[len(metric_keys):]:
+        ax.set_visible(False)
+    top_margin = (0.84 if len(models) > 4 else 0.9) if nrows == 1 else 0.93
+    fig.tight_layout(rect=(0, 0, 1, top_margin))
     fig.savefig(path, dpi=150, facecolor=SURFACE)
     plt.close(fig)
