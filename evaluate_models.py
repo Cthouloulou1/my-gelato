@@ -84,7 +84,9 @@ def main():
                    help="defaut : toutes les cles commencant par 'test'")
     p.add_argument("--include-val", action="store_true")
     p.add_argument("--out-dir", default="runs/evaluation")
-    p.add_argument("--batch-size", type=int, default=64)
+    p.add_argument("--batch-size", type=int, default=None,
+                   help="defaut : la taille de batch d'entrainement de chaque modele "
+                        "(evite de manquer de memoire GPU, ex. equivariant a 512 points)")
     p.add_argument("--num-workers", type=int, default=4)
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
@@ -123,7 +125,8 @@ def main():
             if not idx:
                 print(f"  [{key}] aucun echantillon, ignore")
                 continue
-            loader = DataLoader(Subset(ds, idx), batch_size=args.batch_size,
+            bs = args.batch_size or ck["args"].get("batch_size", 32)
+            loader = DataLoader(Subset(ds, idx), batch_size=bs,
                                 shuffle=False, num_workers=args.num_workers)
             targets, probs = predict(model, loader, device, kind)
             out = os.path.join(args.out_dir, name)
