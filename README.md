@@ -21,6 +21,7 @@ Deux modèles : un réseau **équivariant SO(3)** (e3nn, nuage de points) et un 
 | `train_flow.py` | Entraîne le flow matching des positions atomiques (`--model cnn` ou `equivariant`) |
 | `evaluate_flow.py` | Évalue les modèles de flow sur les tests (RMSD par résolution et par type d'AA, PDB) |
 | `merge_evaluations.py` | Regroupe plusieurs dossiers d'évaluation en une comparaison (tables par métrique, Markdown, figure), sans relancer d'inférence |
+| `analyze_flow_errors.py` | Analyse des erreurs de flow : erreur par rang de placement, sens de la chaîne (N/C inversés), exposure bias, à partir des `*_predictions.npz` |
 | `replot_reports.py` | Régénère confusion / ROC / AUC par classe à partir des `*_predictions.npz`, sans relancer d'inférence |
 | `test_model.py` | Évaluation simple d'un checkpoint équivariant sur un JSON `{"test": [...]}` |
 | `diagnostics.py` | Diagnostics : surapprentissage d'un petit lot, baselines simples, hétérogénéité entre cartes, métadonnées |
@@ -184,6 +185,30 @@ python train_flow.py --model cnn --autoregressive --lmdb-path /data/eyerly/split
     --split-file /data/eyerly/pdb_cryoem_splits/splits.json --epochs 30 --out-dir runs/flow_cnn_ar
 ```
 
+**Mode hybride, par blocs** (`--ar-groups`, implique `--autoregressive`) : certains atomes sont
+placés ensemble, dans un même flow joint (même temps t, les atomes du bloc se voient), et les blocs
+les uns après les autres.
+
+| `--ar-groups` | Blocs (exemple TYR) |
+|---|---|
+| `atom` (défaut) | N · C · CB · O · CG · CD1 · CD2 · CE1 · CE2 · CZ · OH (un atome par bloc) |
+| `backbone` | {N, C, O, CB} · CG · CD1 · … · OH |
+| `hybrid` | {N, C, O, CB} · {CG, CD1, CD2, CE1, CE2, CZ} · OH |
+
+Cycles placés d'un coup en mode `hybrid` : benzène de PHE/TYR, imidazole de HIS (azotes compris),
+indole entier de TRP, CG + CD de PRO. Le bruit de départ d'un atome est centré sur l'atome déjà
+placé le plus proche dans l'arbre des liaisons (Cα pour le bloc backbone, CB pour un cycle).
+Motivation : en mode `atom`, N est placé seul en premier, avant que rien d'autre ne soit décidé, et
+le sens de la chaîne de la glycine (sans CB, densité presque symétrique entre N et C) est inversé
+deux fois plus souvent qu'en mode joint ; fermer un cycle atome par atome propage l'erreur
+d'orientation du début du cycle. `backbone` seul permet de mesurer l'apport de chaque idée.
+
+```bash
+python train_flow.py --model cnn --ar-groups hybrid --lmdb-path /data/eyerly/splits_preprocessed.lmdb \
+    --atom14 /data/eyerly/splits_atom14.npz \
+    --split-file /data/eyerly/pdb_cryoem_splits/splits.json --epochs 30   # -> runs/flow_cnn_ar_hybrid
+```
+
 ### 3. Évaluation
 
 ```bash
@@ -192,6 +217,7 @@ python evaluate_flow.py --lmdb-path /data/eyerly/splits_preprocessed.lmdb \
     --model flow_cnn=runs/flow_cnn/best_model.pt \
     --model flow_equi=runs/flow_equivariant/best_model.pt \
     --model flow_cnn_ar=runs/flow_cnn_ar/best_model.pt \
+    --model flow_cnn_hybrid=runs/flow_cnn_ar_hybrid/best_model.pt \
     --sample-steps 50 --include-val --write-pdb --out-dir runs/evaluation_flow
 ```
 
@@ -199,3 +225,16 @@ Sorties par modèle et ensemble : métriques, RMSD par type d'AA (CSV + PNG), co
 RMSD, et avec `--write-pdb` un fichier `<PDB>_pred.pdb` et `<PDB>_true.pdb` par entrée à ouvrir avec
 la carte dans ChimeraX. RMSD : atomes lourds hors Cα ; pour ASP, GLU, PHE et TYR, la meilleure des
 deux numérotations des atomes symétriques est retenue.
+
+Analyse fine (sans inférence) à partir des prédictions sauvegardées : erreur par rang de placement
+(même ordre pour tous les modèles : N, C, CB, O, CG…), avec l'erreur « locale » du vecteur
+parent → atome ; fraction de résidus dont N et C sont inversés (GLY à part) ; erreur locale selon
+l'erreur du parent, pour détecter un exposure bias.
+
+```bash
+python analyze_flow_errors.py \
+    --pred joint=runs/evaluation_flow/flow_cnn/test_1_2A_predictions.npz \
+    --pred atome=runs/evaluation_flow/flow_cnn_ar/test_1_2A_predictions.npz \
+    --pred hybride=runs/evaluation_flow/flow_cnn_hybrid/test_1_2A_predictions.npz \
+    --out-dir runs/analysis_test_1_2A
+```

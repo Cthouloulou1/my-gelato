@@ -33,6 +33,15 @@ les 13 flows en parallele. La loss geometrique porte alors sur les
 distances entre l'atome estime et les atomes deja places auxquels il est
 lie (1-2) ou separe par un atome (1-3).
 
+Mode hybride (--ar-groups, implique --autoregressive) : certains atomes sont
+places en BLOC (un flow joint par bloc, meme temps t, les atomes du bloc se
+voient), les blocs les uns apres les autres :
+    backbone : N, C, O, CB d'un coup, puis la chaine laterale atome par atome
+    hybrid   : idem, et chaque cycle d'un coup (PHE/TYR, HIS, TRP, PRO)
+Le bruit de depart d'un atome est centre sur l'atome deja place le plus
+proche dans l'arbre des liaisons (C-alpha pour le bloc backbone, CB pour un
+cycle). Dossier par defaut : runs/flow_cnn_ar_<groupes>.
+
 A chaque epoch : loss train/val (flow + geometrie) et, sur un sous-ensemble
 fixe du val, generation complete -> RMSD tous atomes / backbone / chaine
 laterale, fraction de residus a RMSD < 1 A, erreur sur les liaisons.
@@ -57,7 +66,8 @@ from torch.utils.data import DataLoader, Subset
 from tqdm import tqdm
 
 from flow_common import (
-    RANK, FlowDataset, aggregate, ar_start, coord_rotation_from_grid, pair_distances,
+    AR_GROUPS, N_SLOTS, FlowDataset, aggregate, ar_start, ar_tables, coord_rotation_from_grid,
+    pair_distances,
     pair_tensors, predicted_mask, residue_metrics, rotate_coords, sample_atoms, sample_atoms_ar,
     sample_noise, save_flow_reports, spherical_mask_t,
 )
@@ -120,8 +130,12 @@ def _ar_losses(model, cube, pos, y1, mask, restype, pm, args, generator):
     if args.ar_context_noise > 0:
         n = torch.randn(y1.shape, device=dev, generator=generator)
         ctx = y1 + n * (args.ar_context_noise / args.coord_scale) * pm.unsqueeze(-1)
-    y0 = ar_start(ctx, restype, mask, args.ar_noise_center, ar_sigma(args), generator)
-    t = torch.rand(B, y1.shape[1], device=dev, generator=generator)
+    groups = ar_groups(args)
+    rk = ar_tables(groups, dev)[0][restype]                  # (B,14) numero de bloc
+    y0 = ar_start(ctx, restype, mask, args.ar_noise_center, ar_sigma(args), generator, groups)
+    # un temps par bloc (= par atome en mode 'atom')
+    t_blk = torch.rand(B, N_SLOTS + 1, device=dev, generator=generator)
+    t = torch.gather(t_blk, 1, rk.clamp(max=N_SLOTS))
     tt = t[..., None]
     y_t = (1 - tt) * y0 + tt * y1
     v = model(cube, y_t, t, restype, mask, ctx=ctx)
@@ -129,24 +143,31 @@ def _ar_losses(model, cube, pos, y1, mask, restype, pm, args, generator):
     w = pm.float()
     loss_flow = (((v - (y1 - y0)) ** 2).sum(-1) * w).sum() / w.sum().clamp(min=1)
 
-    # geometrie : atome estime (le plus tardif de la paire) vs atome deja place
+    # geometrie : atome estime (le plus tardif de la paire) vs atome deja
+    # place, ou vs l'autre atome estime si les deux sont dans le meme bloc
     x1_hat = (y_t + (1 - tt) * v) * args.coord_scale
     ctx_A = ctx * args.coord_scale
     idx, _, valid = pair_tensors(restype, mask)
-    rk = torch.as_tensor(RANK, device=dev)[restype]
     ra, rb = torch.gather(rk, 1, idx[..., 0]), torch.gather(rk, 1, idx[..., 1])
     late = torch.where(rb > ra, idx[..., 1], idx[..., 0])
     early = torch.where(rb > ra, idx[..., 0], idx[..., 1])
+    same_blk = (ra == rb)[..., None]
 
     def g(x, i):
         return torch.gather(x, 1, i[..., None].expand(-1, -1, 3))
 
-    d_hat = (g(x1_hat, late) - g(ctx_A, early)).norm(dim=-1)
+    early_pos = torch.where(same_blk, g(x1_hat, early), g(ctx_A, early))
+    d_hat = (g(x1_hat, late) - early_pos).norm(dim=-1)
     d_true = (g(pos, late) - g(pos, early)).norm(dim=-1)
     hub = F.huber_loss(d_hat - d_true, torch.zeros_like(d_hat), reduction="none", delta=0.5)
     vw = valid.float() * torch.gather(t, 1, late)
     loss_geom = (hub * vw).sum() / valid.float().sum().clamp(min=1)
     return loss_flow, loss_geom
+
+
+def ar_groups(args):
+    """Mode de blocs ('atom' pour les anciens checkpoints)."""
+    return getattr(args, "ar_groups", None) or "atom"
 
 
 def ar_sigma(args):
@@ -195,7 +216,8 @@ def generate(model, loader, args, device, seed=0, mask_t=None, desc=None):
             cube = cube * mask_t
         if getattr(args, "autoregressive", False):
             pred = sample_atoms_ar(model, cube, restype, mask, args.sample_steps,
-                                   ar_sigma(args), args.coord_scale, args.ar_noise_center, gen)
+                                   ar_sigma(args), args.coord_scale, args.ar_noise_center, gen,
+                                   ar_groups(args))
         else:
             pred = sample_atoms(model, cube, restype, mask, args.sample_steps, args.sigma,
                                 args.coord_scale, gen)
@@ -236,6 +258,10 @@ def main():
     # mode un atome a la fois
     p.add_argument("--autoregressive", action="store_true",
                    help="(cnn) placer les atomes un par un depuis le C-alpha")
+    p.add_argument("--ar-groups", choices=AR_GROUPS, default="atom",
+                   help="atomes places ensemble : atom (un par un), backbone (N,C,O,CB "
+                        "d'un coup), hybrid (backbone + chaque cycle d'un coup) ; "
+                        "autre que atom => --autoregressive")
     p.add_argument("--ar-noise-center", choices=["parent", "ca"], default="parent",
                    help="centre du bruit de depart de chaque atome")
     p.add_argument("--ar-sigma", type=float, default=1.5,
@@ -262,9 +288,13 @@ def main():
     p.add_argument("--out-dir", default=None, help="defaut : runs/flow_<model>")
     p.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     args = p.parse_args()
+    if args.ar_groups != "atom":
+        args.autoregressive = True
     if args.autoregressive and args.model != "cnn":
         p.error("--autoregressive n'est disponible qu'avec --model cnn")
-    args.out_dir = args.out_dir or f"runs/flow_{args.model}{'_ar' if args.autoregressive else ''}"
+    suffix = ("" if not args.autoregressive else
+              "_ar" if args.ar_groups == "atom" else f"_ar_{args.ar_groups}")
+    args.out_dir = args.out_dir or f"runs/flow_{args.model}{suffix}"
     os.makedirs(args.out_dir, exist_ok=True)
     ckpt_path = os.path.join(args.out_dir, "best_model.pt")
 
@@ -296,7 +326,8 @@ def main():
     augment = args.model == "cnn" and not args.no_augment
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
-    mode = "un atome a la fois" if args.autoregressive else "joint"
+    mode = ("joint" if not args.autoregressive else
+            "un atome a la fois" if args.ar_groups == "atom" else f"blocs {args.ar_groups}")
     history = MetricsHistory(args.out_dir, title=f"Flow matching ({args.model}, {mode})",
                              curves=FLOW_CURVES, lower_better=LOWER_BETTER)
     best = float("inf")
