@@ -31,9 +31,9 @@ import os
 from train_utils import plot_model_comparison
 
 DATASET_ORDER = ["val", "test_1_2A", "test_2_3A", "test_3_4A"]
-CLASSIF_METRICS = ["accuracy", "top3_acc", "f1_macro", "auc_macro"]
+CLASSIF_METRICS = ["accuracy", "f1_macro", "auc_macro", "ap_macro", "top3_acc"]
 FLOW_METRICS = ["rmsd_mean", "rmsd_sidechain_mean", "frac_rmsd_lt_1A", "bond_err_mean"]
-IGNORED = {"auc_per_class", "n_samples", "n_residues", "n_entries", "best_epoch",
+IGNORED = {"auc_per_class", "ap_per_class", "n_samples", "n_residues", "n_entries", "best_epoch",
            "sample_steps"}
 
 

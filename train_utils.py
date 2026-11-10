@@ -33,7 +33,7 @@ from matplotlib.ticker import MaxNLocator
 
 from sklearn.metrics import (
     classification_report, confusion_matrix, precision_recall_fscore_support,
-    roc_auc_score, roc_curve,
+    average_precision_score, precision_recall_curve, roc_auc_score, roc_curve,
 )
 
 
@@ -147,6 +147,46 @@ def roc_data(targets, probs, n_classes=N_CLASSES, grid_size=501):
         res["micro"] = {"fpr": fpr, "tpr": tpr,
                         "auc": float(roc_auc_score(onehot.ravel(), probs.ravel()))}
     return res
+
+
+def pr_data(targets, probs, n_classes=N_CLASSES, grid_size=501):
+    """Courbes precision-recall one-vs-rest. Pour chaque classe ayant au
+    moins un positif : precision, rappel, average precision (AP, aire sous la
+    courbe) et prevalence (= niveau du hasard pour cette classe). Moyenne
+    micro (tous les couples (echantillon, classe) poolés) et macro (moyenne
+    des precisions interpolees, enveloppe superieure, sur une grille de
+    rappel ; AP macro = moyenne des AP par classe)."""
+    targets = np.asarray(targets)
+    probs = np.asarray(probs)
+    onehot = np.eye(n_classes, dtype=np.int64)[targets]
+    grid = np.linspace(0.0, 1.0, grid_size)
+    per_class, precs = {}, []
+    for c in range(n_classes):
+        y = onehot[:, c]
+        if y.sum() == 0:
+            continue
+        prec, rec, _ = precision_recall_curve(y, probs[:, c])
+        ap = average_precision_score(y, probs[:, c])
+        per_class[c] = {"precision": prec, "recall": rec, "ap": float(ap),
+                        "prevalence": float(y.mean()), "n_pos": int(y.sum())}
+        order = np.argsort(rec)
+        r_asc, p_asc = rec[order], prec[order]
+        p_env = np.maximum.accumulate(p_asc[::-1])[::-1]   # precision interpolee
+        precs.append(np.interp(grid, r_asc, p_env))
+    res = {"per_class": per_class}
+    if per_class:
+        res["macro"] = {"recall": grid, "precision": np.mean(precs, axis=0),
+                        "ap": float(np.mean([v["ap"] for v in per_class.values()]))}
+        prec, rec, _ = precision_recall_curve(onehot.ravel(), probs.ravel())
+        res["micro"] = {"recall": rec, "precision": prec,
+                        "ap": float(average_precision_score(onehot.ravel(), probs.ravel())),
+                        "prevalence": float(onehot.mean())}
+    return res
+
+
+def pr_summary(pr):
+    return {"ap_macro": pr.get("macro", {}).get("ap"),
+            "ap_micro": pr.get("micro", {}).get("ap")}
 
 
 def epoch_metrics(targets, probs, loss=None):
@@ -375,6 +415,67 @@ def plot_roc(roc, path, title=""):
     plt.close(fig)
 
 
+def plot_pr(pr, path, title=""):
+    fig, ax = _new_fig(figsize=(6.2, 5.6))
+    _style_axes(ax)
+    first = True
+    for c, d in pr["per_class"].items():
+        ax.plot(d["recall"], d["precision"], color=NEUTRAL_MARK, linewidth=0.8, alpha=0.6,
+                label="classes individuelles (OvR)" if first else None)
+        first = False
+    if "macro" in pr:
+        ax.plot(pr["macro"]["recall"], pr["macro"]["precision"], color=SERIES_ALT[0],
+                linewidth=2, label=f"macro-moyenne  AP = {pr['macro']['ap']:.3f}")
+    if "micro" in pr:
+        ax.plot(pr["micro"]["recall"], pr["micro"]["precision"], color=SERIES_ALT[1],
+                linewidth=2, label=f"micro-moyenne  AP = {pr['micro']['ap']:.3f}")
+        prev = pr["micro"]["prevalence"]
+        ax.axhline(prev, color=TEXT_SECONDARY, linewidth=1, linestyle="--",
+                   label=f"hasard (micro) = {prev:.3f}")
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1.01)
+    ax.set_xlabel("rappel (recall)")
+    ax.set_ylabel("precision")
+    ax.legend(loc="lower left", bbox_to_anchor=(0.0, 0.08), frameon=False, fontsize=8,
+              labelcolor=TEXT_PRIMARY)
+    if title:
+        ax.set_title(title, loc="left", fontsize=11)
+    fig.tight_layout()
+    fig.savefig(path, dpi=150, facecolor=SURFACE)
+    plt.close(fig)
+
+
+def plot_ap_per_class(pr, path, title="", class_names=RESIDUE_CLASSES):
+    """AP par classe ; le trait fonce sur chaque barre marque le niveau du
+    hasard de la classe (sa frequence)."""
+    items = sorted(pr["per_class"].items(), key=lambda kv: kv[1]["ap"])
+    if not items:
+        return
+    fig, ax = _new_fig(figsize=(6.2, 0.28 * len(items) + 1.2))
+    _style_axes(ax)
+    ax.grid(axis="y", visible=False)
+    y = np.arange(len(items))
+    aps = [d["ap"] for _, d in items]
+    ax.barh(y, aps, color=SERIES_ALT[0], height=0.7)
+    ax.vlines([d["prevalence"] for _, d in items], y - 0.35, y + 0.35,
+              color=TEXT_PRIMARY, linewidth=1.5, label="hasard (frequence de la classe)")
+    ax.set_yticks(y)
+    ax.set_yticklabels([f"{class_names[c]} (n={d['n_pos']})" for c, d in items], fontsize=8)
+    ax.set_xlim(0, 1.09)
+    ax.set_xticks(np.linspace(0, 1, 6))
+    ax.spines["bottom"].set_bounds(0, 1)
+    ax.set_xlabel("average precision one-vs-rest")
+    for i, a in enumerate(aps):
+        ax.text(a + 0.012, i, f"{a:.2f}", va="center", ha="left", fontsize=7,
+                color=TEXT_SECONDARY)
+    ax.legend(loc="lower right", frameon=False, fontsize=8)
+    if title:
+        ax.set_title(title, loc="left", fontsize=11)
+    fig.tight_layout()
+    fig.savefig(path, dpi=150, facecolor=SURFACE)
+    plt.close(fig)
+
+
 def plot_auc_per_class(roc, path, title="", class_names=RESIDUE_CLASSES):
     items = sorted(roc["per_class"].items(), key=lambda kv: kv[1]["auc"])
     if not items:
@@ -409,7 +510,8 @@ def save_final_reports(targets, probs, out_dir, prefix, title="",
     """Ecrit dans out_dir :
         <prefix>_confusion.csv / _confusion.png
         <prefix>_roc.png / _auc_per_class.png
-        <prefix>_metrics.json (metriques globales + AUC par classe)
+        <prefix>_pr.png / _ap_per_class.png (precision-recall)
+        <prefix>_metrics.json (metriques globales + AUC et AP par classe)
         <prefix>_classification_report.txt
         <prefix>_predictions.npz (targets + probs, pour retracer)
     Retourne le dict de metriques."""
@@ -424,6 +526,9 @@ def save_final_reports(targets, probs, out_dir, prefix, title="",
     metrics.update(auc_summary(roc))
     metrics["n_samples"] = int(len(targets))
     metrics["auc_per_class"] = {class_names[c]: d["auc"] for c, d in roc["per_class"].items()}
+    pr = pr_data(targets, probs, n_classes)
+    metrics.update(pr_summary(pr))
+    metrics["ap_per_class"] = {class_names[c]: d["ap"] for c, d in pr["per_class"].items()}
     if extra:
         metrics.update(extra)
 
@@ -439,6 +544,9 @@ def save_final_reports(targets, probs, out_dir, prefix, title="",
     if roc["per_class"]:
         plot_roc(roc, base + "_roc.png", title)
         plot_auc_per_class(roc, base + "_auc_per_class.png", title, class_names)
+    if pr["per_class"]:
+        plot_pr(pr, base + "_pr.png", title)
+        plot_ap_per_class(pr, base + "_ap_per_class.png", title, class_names)
 
     with open(base + "_classification_report.txt", "w") as f:
         f.write(classification_report(targets, preds, labels=labels_all,

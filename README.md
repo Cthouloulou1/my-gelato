@@ -88,6 +88,7 @@ Sorties de chaque entraînement (`--out-dir`) :
 - `training_curves.png` : courbes correspondantes, mises à jour à chaque epoch ;
 - `best_model.pt` : meilleur checkpoint (macro-F1 val) ;
 - `val_best_confusion.{csv,png}`, `val_best_roc.png`, `val_best_auc_per_class.png`,
+  `val_best_pr.png`, `val_best_ap_per_class.png` (precision-recall),
   `val_best_metrics.json`, `val_best_classification_report.txt`, `val_best_predictions.npz`.
 
 ### 4. Évaluation sur les 3 tests
@@ -114,6 +115,14 @@ python merge_evaluations.py runs/evaluation runs/evaluation_v2 runs/evaluation_e
 Un même modèle présent dans deux dossiers n'est gardé qu'une fois. Sorties : `summary.csv`,
 `table_<métrique>.csv` (modèles en lignes, ensembles en colonnes), `summary.md`, `comparison.png`.
 Fonctionne aussi avec les dossiers de `evaluate_flow.py`.
+
+**Courbes precision-recall** (`*_pr.png`, `*_ap_per_class.png`, métriques `ap_macro`, `ap_micro`) :
+avec 21 classes, chaque classe « contre le reste » a beaucoup plus de négatifs que de positifs, ce
+qui rend la ROC flatteuse (le taux de faux positifs est dilué par tous les négatifs). La courbe
+precision-recall mesure la précision des résidus annoncés pour une classe et y est plus sensible.
+L'average precision (AP) en est l'aire ; le niveau du hasard est la fréquence de la classe
+(environ 0.05). Pour l'ajouter à des évaluations existantes sans relancer d'inférence :
+`python replot_reports.py runs`.
 
 Convention : les moyennes macro (precision, recall, F1, AUC) portent sur les classes
 présentes dans la vérité terrain de l'ensemble évalué.
