@@ -22,6 +22,8 @@ Deux modèles : un réseau **équivariant SO(3)** (e3nn, nuage de points) et un 
 | `evaluate_flow.py` | Évalue les modèles de flow sur les tests (RMSD par résolution et par type d'AA, PDB) |
 | `merge_evaluations.py` | Regroupe plusieurs dossiers d'évaluation en une comparaison (tables par métrique, Markdown, figure), sans relancer d'inférence |
 | `analyze_flow_errors.py` | Analyse des erreurs de flow : erreur par rang de placement, sens de la chaîne (N/C inversés), exposure bias, à partir des `*_predictions.npz` |
+| `extract_ca_context.py` | Contexte des Cα voisins de chaque résidu (i−1/i+1, ou les plus proches sans ordre) et vrais atomes du squelette voisin, lus dans les `.cif` |
+| `run_flow_context.sh` | Entraîne les variantes hybrides avec Cα voisins et loss sur la liaison peptidique, puis évalue et analyse |
 | `make_chimerax_view.py` | Session ChimeraX d'une portion de protéine : vraie structure, résidus reconstruits par chaque modèle et carte de densité, à partir des prédictions sauvegardées |
 | `summarize_seeds.py` | Résumé multi-seeds des évaluations de flow : moyenne ± écart-type, écart à une référence, figures avec barres d'erreur |
 | `run_flow_e100.sh` / `run_flow_seeds.sh` | Enchaînent les entraînements des variantes de flow (100 epochs ; seeds supplémentaires), l'évaluation et l'analyse |
@@ -243,6 +245,32 @@ python make_chimerax_view.py --atom14 /data/eyerly/splits_atom14.npz \
     --eval-dir runs/evaluation_flow_e100 --set test_1_2A --pick aromatic
 chimerax runs/chimerax/test_1_2A_<PDB>_<chaine><debut>-<fin>/view.cxc
 ```
+
+**Cα voisins et liaison peptidique** (réseau `cnn`). Le squelette d'un résidu dépend surtout de ses
+voisins : C(i), O(i) et N(i+1) sont dans le plan peptidique entre Cα(i) et Cα(i+1), et la liaison
+C(i)–N(i+1) mesure 1,33 Å. Chaque résidu étant prédit séparément, rien ne l'imposait jusqu'ici.
+
+- `--ca-context chain` : Cα de i−1 et i+1 en entrée (trace ordonnée connue, hypothèse optimiste).
+- `--ca-context knn` : les Cα les plus proches (16 au plus, ≤ 10 Å, toutes chaînes), sans ordre
+  (Cα détectés sans chaînage, hypothèse réaliste).
+- `--pep-weight 1` : loss sur les distances entre le N, C, O estimés du résidu et les vrais atomes du
+  squelette des voisins (liaison C–N et distances 1-3 à travers elle).
+
+Les Cα voisins deviennent des jetons du transformer : les atomes les voient, eux ne voient pas les
+atomes (le mode autorégressif reste causal). Le contexte vient de `extract_ca_context.py`, qui relit
+les `.cif` (tous les résidus, y compris ceux absents de `atom14.npz`) :
+
+```bash
+python extract_ca_context.py --atom14 /data/eyerly/splits_atom14.npz \
+    --cif-dir /data/eyerly/pdb_cryoem_splits --out /data/eyerly/splits_ca_context.npz
+python train_flow.py --model cnn --ar-groups hybrid --ca-context chain --pep-weight 1 \
+    --ca-context-file /data/eyerly/splits_ca_context.npz --lmdb-path ... --atom14 ... --split-file ...
+```
+
+`bash run_flow_context.sh` fait tout : extraction, trois variantes hybrides (pep seule, `chain`,
+`knn`) sur 100 epochs, évaluation avec la référence hybride et analyse. Le diagnostic de la liaison
+peptidique entre résidus consécutifs s'obtient avec `analyze_flow_errors.py --atom14 ... --splits ...
+--set val`.
 
 Plusieurs seeds : `bash run_flow_seeds.sh` entraîne les seeds 1 et 2 (`SEEDS="1 2"`) du joint, du
 backbone et de l'hybride, en plus du seed 42 de `run_flow_e100.sh`, les évalue, puis résume tout en
