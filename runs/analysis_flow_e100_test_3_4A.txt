@@ -1,0 +1,29 @@
+
+1. Erreur moyenne par rang de placement (A) ; entre parentheses : erreur locale
+   (rangs : 1=N, 2=C, 3=CB, 4=O, 5=CG, 6=CD, 7=NE, ... pour ARG ; 3 = O pour GLY)
+rang  n_atomes (joint)             joint             atome          backbone           hybride
+   1             22354    0.868 (0.868)    0.924 (0.924)    0.835 (0.835)    0.831 (0.831)
+   2             22354    0.911 (0.911)    1.001 (1.001)    0.873 (0.873)    0.879 (0.879)
+   3             22354    0.834 (0.776)    0.953 (0.890)    0.847 (0.797)    0.845 (0.793)
+   4             21063    1.599 (0.915)    1.756 (0.985)    1.581 (0.924)    1.583 (0.922)
+   5             19509    1.459 (1.213)    1.590 (1.230)    1.499 (1.203)    1.483 (1.194)
+   6             17416    1.863 (1.307)    2.030 (1.325)    1.935 (1.283)    1.922 (1.281)
+   7             13342    2.209 (1.313)    2.410 (1.333)    2.334 (1.299)    2.296 (1.297)
+   8              7120    2.689 (1.082)    3.143 (1.178)    3.042 (1.153)    2.949 (1.123)
+   9              4005    2.461 (0.988)    3.075 (1.134)    3.003 (1.103)    2.811 (1.060)
+  10              3574    2.539 (1.073)    3.305 (1.139)    3.237 (1.134)    3.022 (1.102)
+
+2. Residus avec N et C inverses (sens de la chaine)
+             joint : GLY   7.4% (n=1291)   autres   1.5%
+             atome : GLY  12.9% (n=1291)   autres   4.6%
+          backbone : GLY   9.4% (n=1291)   autres   3.9%
+           hybride : GLY   9.7% (n=1291)   autres   4.3%
+
+3. Erreur locale de l'atome selon l'erreur de son parent (rangs >= 5)
+          parent    0-0.5 A    0.5-1 A      1-2 A      2-4 A       >4 A
+           joint      0.844      1.180      1.385      1.583      1.832
+           atome      0.836      1.138      1.387      1.587      1.884
+        backbone      0.834      1.127      1.365      1.565      1.889
+         hybride      0.817      1.120      1.374      1.570      1.888
+
+Tables ecrites dans runs/analysis_flow_e100/test_3_4A
