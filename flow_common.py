@@ -318,6 +318,103 @@ class FlowDataset(Dataset):
 
 
 # ---------------------------------------------------------------------------
+# Contexte des C-alpha voisins (extract_ca_context.py)
+# ---------------------------------------------------------------------------
+
+CA_CONTEXTS = ("none", "chain", "knn")
+CTX_PREV, CTX_NEXT, CTX_KNN = 0, 1, 2          # types de jetons de contexte
+
+
+class CAContext:
+    """Contexte des C-alpha voisins, aligne sur atom14.npz, indexe par les
+    indices de residus des batches. mode : 'chain' (C-alpha de i-1 et i+1,
+    trace ordonnee), 'knn' (K C-alpha les plus proches, sans ordre) ou
+    'none' (aucun jeton ; seuls les atomes voisins servent a la loss sur la
+    liaison peptidique)."""
+
+    def __init__(self, path, mode, atom14_path=None):
+        if mode not in CA_CONTEXTS:
+            raise ValueError(f"ca_context inconnu : {mode}")
+        z = np.load(path, allow_pickle=False)
+        if atom14_path is not None:
+            a = np.load(atom14_path, allow_pickle=False)
+            same = (len(a["pdb_ids"]) == len(z["pdb_ids"])
+                    and all(np.array_equal(a[k], z[k]) for k in ("pdb_ids", "chains", "seqids")))
+            if not same:
+                raise SystemExit(f"{path} n'est pas aligne sur {atom14_path} : relancer "
+                                 f"extract_ca_context.py avec ce atom14.npz")
+        self.mode = mode
+        t = {k: torch.from_numpy(np.asarray(z[k])) for k in
+             ("prev_atoms", "prev_mask", "next_atoms", "next_mask", "knn_ca", "knn_mask")}
+        self.prev, self.prev_mask = t["prev_atoms"].float(), t["prev_mask"].bool()
+        self.next, self.next_mask = t["next_atoms"].float(), t["next_mask"].bool()
+        if mode == "chain":
+            self.tok = torch.stack([self.prev[:, 0], self.next[:, 1]], 1)
+            self.tok_mask = torch.stack([self.prev_mask[:, 0], self.next_mask[:, 1]], 1)
+            self.tok_type = torch.tensor([CTX_PREV, CTX_NEXT])
+        elif mode == "knn":
+            self.tok, self.tok_mask = t["knn_ca"].float(), t["knn_mask"].bool()
+            self.tok_type = torch.full((self.tok.shape[1],), CTX_KNN)
+        else:
+            self.tok = None
+
+    def batch(self, idx, device):
+        """dict sur device : tokens 'pos' (B,T,3) A, 'mask' (B,T), 'type' (B,T)
+        (si mode != none) et atomes voisins 'prev' (B,3,3) [CA, C, O de i-1],
+        'next' (B,2,3) [N, CA de i+1] avec leurs masques."""
+        idx = torch.as_tensor(idx).long().cpu()
+        out = {"prev": self.prev[idx], "prev_mask": self.prev_mask[idx],
+               "next": self.next[idx], "next_mask": self.next_mask[idx]}
+        if self.tok is not None:
+            out.update(pos=self.tok[idx], mask=self.tok_mask[idx],
+                       type=self.tok_type.expand(len(idx), -1))
+        return {k: v.to(device) for k, v in out.items()}
+
+
+def rotate_context(nb, M):
+    """Tourne les positions du contexte comme les atomes (augmentation)."""
+    nb = dict(nb)
+    for k in ("pos", "prev", "next"):
+        if k in nb:
+            nb[k] = rotate_coords(nb[k], M)
+    return nb
+
+
+def model_context(nb):
+    """Jetons de contexte a passer au modele (None si pas de jetons)."""
+    if nb is None or "pos" not in nb:
+        return None
+    return {k: nb[k] for k in ("pos", "mask", "type")}
+
+
+# (atome predit, voisin, index de l'atome voisin) : liaison peptidique (1-2)
+# et distances 1-3 a travers elle
+PEP_PAIRS = [(0, "prev", 1),    # N(i)-C(i-1)    liaison
+             (0, "prev", 0),    # N(i)-CA(i-1)
+             (0, "prev", 2),    # N(i)-O(i-1)
+             (2, "next", 0),    # C(i)-N(i+1)    liaison
+             (2, "next", 1),    # C(i)-CA(i+1)
+             (3, "next", 0)]    # O(i)-N(i+1)
+
+
+def peptide_loss(x1_hat, pos, nb, t_atom, delta=0.5):
+    """Huber (A) sur l'ecart entre les distances predites et vraies de
+    PEP_PAIRS : le N et le C (et O) du residu estime doivent etre a la bonne
+    distance des VRAIS atomes des residus voisins. x1_hat, pos (B,14,3) A ;
+    t_atom (B,14) poids (temps du flow, une estimation a t ~ 0 n'a pas de sens)."""
+    tot = x1_hat.new_zeros(())
+    cnt = x1_hat.new_zeros(())
+    for slot, side, j in PEP_PAIRS:
+        q, m = nb[side][:, j], nb[f"{side}_mask"][:, j].float()
+        err = (x1_hat[:, slot] - q).norm(dim=-1) - (pos[:, slot] - q).norm(dim=-1)
+        hub = torch.nn.functional.huber_loss(err, torch.zeros_like(err), reduction="none",
+                                             delta=delta)
+        tot = tot + (hub * m * t_atom[:, slot]).sum()
+        cnt = cnt + m.sum()
+    return tot / cnt.clamp(min=1)
+
+
+# ---------------------------------------------------------------------------
 # Flow matching (interpolation lineaire / rectified flow)
 # ---------------------------------------------------------------------------
 
@@ -356,14 +453,18 @@ def _encode(model, cube):
 
 
 @torch.no_grad()
-def sample_atoms(model, cube, restype, mask, n_steps, sigma, scale, generator=None):
+def sample_atoms(model, cube, restype, mask, n_steps, sigma, scale, generator=None,
+                 ca_ctx=None):
     """Mode joint : integre l'ODE de t=0 (bruit) a t=1 (Euler) pour tous les
-    atomes a la fois. Retourne (B,14,3) en A."""
+    atomes a la fois. Retourne (B,14,3) en A. ca_ctx : jetons des C-alpha
+    voisins (model_context), pour les modeles entraines avec."""
     pm = predicted_mask(mask).unsqueeze(-1)
     y = sample_noise(mask, sigma, generator)
     B = y.shape[0]
     feats = _encode(model, cube)
     kw = {"feats": feats} if feats is not None else {}
+    if ca_ctx is not None:
+        kw["ca_ctx"] = ca_ctx
     for s in range(n_steps):
         t = torch.full((B,), s / n_steps, device=y.device)
         v = model(cube, y, t, restype, mask, **kw)
@@ -390,7 +491,7 @@ def ar_start(ctx, restype, mask, center, sigma_ar, generator=None, groups="atom"
 
 @torch.no_grad()
 def sample_atoms_ar(model, cube, restype, mask, n_steps, sigma_ar, scale, center="parent",
-                    generator=None, groups="atom"):
+                    generator=None, groups="atom", ca_ctx=None):
     """Mode autoregressif : les blocs d'atomes (un atome par bloc en mode
     'atom', cf. AR_STEPS) sont places l'un apres l'autre depuis le C-alpha ;
     chaque bloc a son propre flow de t=0 a 1 (joint sur les atomes du bloc),
@@ -410,7 +511,7 @@ def sample_atoms_ar(model, cube, restype, mask, n_steps, sigma_ar, scale, center
                                       groups), ctx)
         for s in range(n_steps):
             t = torch.full((B, N_SLOTS), s / n_steps, device=dev)
-            v = model(cube, y, t, restype, mask, ctx=ctx, feats=feats)
+            v = model(cube, y, t, restype, mask, ctx=ctx, feats=feats, ca_ctx=ca_ctx)
             y = y + sel * v / n_steps
         ctx = torch.where(sel, y, ctx)
     return ctx * scale

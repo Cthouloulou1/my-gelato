@@ -30,7 +30,7 @@ import torch
 import torch.nn as tnn
 import torch.nn.functional as F
 
-from flow_common import AR_STEPS, N_SLOTS, TOPO, pair_tensors, predicted_mask
+from flow_common import AR_STEPS, CA_CONTEXTS, N_SLOTS, TOPO, pair_tensors, predicted_mask
 
 
 class TimeEmbedding(tnn.Module):
@@ -104,11 +104,16 @@ class CNNFlowNet(tnn.Module):
     s'entrainent en parallele dans une seule passe.
     ar_groups ('atom', 'backbone', 'hybrid', cf. flow_common.AR_STEPS) : les
     atomes d'un meme bloc forment un flow joint (meme temps t, leurs requetes
-    se voient entre elles) ; le rang ci-dessus devient le numero du bloc."""
+    se voient entre elles) ; le rang ci-dessus devient le numero du bloc.
+    ca_context ('chain' : C-alpha de i-1 et i+1 ; 'knn' : C-alpha les plus
+    proches, sans ordre) : jetons supplementaires (densite echantillonnee a
+    leur position + position + type). Tous les jetons d'atomes les voient ;
+    eux ne voient que les autres jetons de contexte (pas les atomes, ce qui
+    garde le mode autoregressif causal)."""
 
     def __init__(self, coord_scale=4.0, cube_size=20, voxel=1.0, channels=(32, 64, 128),
                  d_model=128, n_layers=4, n_heads=4, dropout=0.0, autoregressive=False,
-                 ar_groups="atom"):
+                 ar_groups="atom", ca_context="none"):
         super().__init__()
         assert cube_size % 4 == 0
         self.coord_scale = coord_scale
@@ -128,7 +133,13 @@ class CNNFlowNet(tnn.Module):
         self.in_proj = tnn.Linear(c1 + c2 + 3, d_model)
         self.atom_emb = tnn.Embedding(20 * N_SLOTS, d_model)
         self.time_emb = TimeEmbedding(d_model)
-        self.topo_bias = tnn.Embedding(5, n_heads)
+        if ca_context not in CA_CONTEXTS:
+            raise ValueError(f"ca_context inconnu : {ca_context}")
+        self.ca_context = ca_context
+        if ca_context != "none":
+            self.ctx_type_emb = tnn.Embedding(3, d_model)    # i-1, i+1, voisin sans ordre
+        # distances de graphe 0-4 ; 5 = paire impliquant un jeton de contexte
+        self.topo_bias = tnn.Embedding(5 if ca_context == "none" else 6, n_heads)
         self.register_buffer("topo", torch.as_tensor(TOPO))
         self.layers = tnn.ModuleList(BiasedTransformerLayer(d_model, n_heads, dropout)
                                      for _ in range(n_layers))
@@ -148,11 +159,38 @@ class CNNFlowNet(tnn.Module):
                            sample_features(f2, pos_A, self.half[1])], -1)
         return self.in_proj(torch.cat([local, y], -1)) + self.atom_emb(atom_ids(restype))
 
-    def forward(self, cube, y_t, t, restype, mask, ctx=None, feats=None):
+    def _ctx_tokens(self, feats, ca_ctx):
+        f1, f2, glob = feats
+        pos_A = ca_ctx["pos"]
+        local = torch.cat([sample_features(f1, pos_A, self.half[0]),
+                           sample_features(f2, pos_A, self.half[1])], -1)
+        return (self.in_proj(torch.cat([local, pos_A / self.coord_scale], -1))
+                + self.ctx_type_emb(ca_ctx["type"]) + glob[:, None, :])
+
+    def _with_context(self, h, bias, feats, ca_ctx):
+        """Ajoute les jetons de contexte apres les L jetons d'atomes."""
+        if self.ca_context == "none":
+            return h, bias
+        if ca_ctx is None:
+            raise ValueError("modele entraine avec --ca-context : il faut les C-alpha voisins")
+        B, L = h.shape[:2]
+        T = ca_ctx["pos"].shape[1]
+        c = self._ctx_tokens(feats, ca_ctx)
+        H = bias.shape[1]
+        w = self.topo_bias.weight[5].view(1, H, 1, 1)
+        present = ca_ctx["mask"][:, None, None, :]                       # (B,1,1,T)
+        eye = torch.eye(T, dtype=torch.bool, device=h.device)
+        full = bias.new_full((B, H, L + T, L + T), -1e4)
+        full[:, :, :L, :L] = bias
+        full[:, :, :L, L:] = w.expand(B, H, L, T).masked_fill(~present, -1e4)
+        full[:, :, L:, L:] = w.expand(B, H, T, T).masked_fill(~(present | eye), -1e4)
+        return torch.cat([h, c], 1), full
+
+    def forward(self, cube, y_t, t, restype, mask, ctx=None, feats=None, ca_ctx=None):
         if feats is None:
             feats = self.encode(cube)
         if self.autoregressive:
-            return self._forward_ar(feats, y_t, t, restype, mask, ctx)
+            return self._forward_ar(feats, y_t, t, restype, mask, ctx, ca_ctx)
         B = y_t.shape[0]
         glob = feats[2]
         h = self._atom_tokens(feats, y_t, restype) + (self.time_emb(t) + glob)[:, None, :]
@@ -161,11 +199,12 @@ class CNNFlowNet(tnn.Module):
         eye = torch.eye(N_SLOTS, dtype=torch.bool, device=cube.device)
         blocked = (~mask)[:, None, None, :] & ~eye                        # cles absentes
         bias = bias.masked_fill(blocked, -1e4)
+        h, bias = self._with_context(h, bias, feats, ca_ctx)
         for layer in self.layers:
             h = layer(h, bias)
-        return self.out(h) * predicted_mask(mask).unsqueeze(-1)
+        return self.out(h[:, :N_SLOTS]) * predicted_mask(mask).unsqueeze(-1)
 
-    def _forward_ar(self, feats, y_t, t, restype, mask, ctx):
+    def _forward_ar(self, feats, y_t, t, restype, mask, ctx, ca_ctx=None):
         """t (B,14) : un temps par atome (identique dans un bloc) ;
         ctx (B,14,3) : positions placees."""
         B = y_t.shape[0]
@@ -193,9 +232,10 @@ class CNNFlowNet(tnn.Module):
         topo2 = torch.cat([torch.cat([topo, topo], 2), torch.cat([topo, topo], 2)], 1)
         bias = self.topo_bias(topo2).permute(0, 3, 1, 2)                 # (B,H,28,28)
         bias = bias.masked_fill(~allow[:, None], -1e4)
+        h, bias = self._with_context(h, bias, feats, ca_ctx)
         for layer in self.layers:
             h = layer(h, bias)
-        return self.out(h[:, N_SLOTS:]) * predicted_mask(mask).unsqueeze(-1)
+        return self.out(h[:, N_SLOTS:2 * N_SLOTS]) * predicted_mask(mask).unsqueeze(-1)
 
 
 # ---------------------------------------------------------------------------
@@ -303,7 +343,7 @@ class EquivariantFlowNet(tnn.Module):
 
 MODEL_KWARGS = {
     "cnn": ("coord_scale", "channels", "d_model", "n_layers", "n_heads", "dropout",
-            "autoregressive", "ar_groups"),
+            "autoregressive", "ar_groups", "ca_context"),
     "equivariant": ("coord_scale", "n_density", "k_neighbors", "max_radius", "num_basis",
                     "lmax", "eq_channels", "activation"),
 }
@@ -316,10 +356,13 @@ def build_flow_model(kind, a):
                           d_model=a["d_model"], n_layers=a["n_layers"],
                           n_heads=a["n_heads"], dropout=a["dropout"],
                           autoregressive=a.get("autoregressive", False),
-                          ar_groups=a.get("ar_groups") or "atom")
+                          ar_groups=a.get("ar_groups") or "atom",
+                          ca_context=a.get("ca_context") or "none")
     if kind == "equivariant":
         if a.get("autoregressive"):
             raise ValueError("le mode autoregressif n'existe que pour --model cnn")
+        if (a.get("ca_context") or "none") != "none":
+            raise ValueError("--ca-context n'existe que pour --model cnn")
         return EquivariantFlowNet(coord_scale=a["coord_scale"], n_density=a["n_density"],
                                   k_neighbors=a["k_neighbors"], max_radius=a["max_radius"],
                                   num_basis=a["num_basis"], lmax=a["lmax"],

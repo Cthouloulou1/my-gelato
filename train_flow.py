@@ -42,6 +42,16 @@ Le bruit de depart d'un atome est centre sur l'atome deja place le plus
 proche dans l'arbre des liaisons (C-alpha pour le bloc backbone, CB pour un
 cycle). Dossier par defaut : runs/flow_cnn_ar_<groupes>.
 
+C-alpha voisins (--ca-context, reseau cnn, fichier --ca-context-file produit
+par extract_ca_context.py) : jetons supplementaires dans le transformer.
+    chain : C-alpha de i-1 et i+1 (trace ordonnee connue)
+    knn   : C-alpha les plus proches, toutes chaines, sans ordre (detectes)
+Liaison peptidique (--pep-weight, meme fichier) : loss Huber sur les
+distances entre le N, C, O estimes du residu et les VRAIS atomes du squelette
+des residus voisins (liaison C-N 1-2 et distances 1-3), ponderee par t comme
+la loss geometrique. Calculee et suivie des que le fichier est donne, meme
+avec un poids 0. Suffixe du dossier par defaut : _<contexte>, _pep.
+
 A chaque epoch : loss train/val (flow + geometrie) et, sur un sous-ensemble
 fixe du val, generation complete -> RMSD tous atomes / backbone / chaine
 laterale, fraction de residus a RMSD < 1 A, erreur sur les liaisons.
@@ -66,8 +76,8 @@ from torch.utils.data import DataLoader, Subset
 from tqdm import tqdm
 
 from flow_common import (
-    AR_GROUPS, N_SLOTS, FlowDataset, aggregate, ar_start, ar_tables, coord_rotation_from_grid,
-    pair_distances,
+    AR_GROUPS, CA_CONTEXTS, N_SLOTS, CAContext, FlowDataset, aggregate, ar_start, ar_tables, coord_rotation_from_grid,
+    model_context, pair_distances, peptide_loss, rotate_context,
     pair_tensors, predicted_mask, residue_metrics, rotate_coords, sample_atoms, sample_atoms_ar,
     sample_noise, save_flow_reports, spherical_mask_t,
 )
@@ -78,17 +88,36 @@ FLOW_CURVES = [
     ("loss", "Loss totale"),
     ("loss_flow", "Loss flow matching"),
     ("loss_geom", "Loss geometrique (A)"),
+    ("loss_pep", "Loss liaison peptidique (A)"),
     ("rmsd_mean", "RMSD moyen (A)"),
     ("rmsd_sidechain_mean", "RMSD chaine laterale (A)"),
     ("frac_rmsd_lt_1A", "Fraction RMSD < 1 A"),
     ("bond_err_mean", "Erreur longueurs de liaison (A)"),
 ]
-LOWER_BETTER = ("loss", "loss_flow", "loss_geom", "rmsd_mean", "rmsd_sidechain_mean",
+LOWER_BETTER = ("loss", "loss_flow", "loss_geom", "loss_pep", "rmsd_mean", "rmsd_sidechain_mean",
                 "bond_err_mean")
 
 
+_CONTEXTS = {}
+
+
+def get_context(args):
+    """CAContext (mis en cache) si un fichier de contexte est donne, sinon None."""
+    path = getattr(args, "ca_context_file", None)
+    if not path:
+        return None
+    mode = getattr(args, "ca_context", None) or "none"
+    key = (path, mode)
+    if key not in _CONTEXTS:
+        _CONTEXTS[key] = CAContext(path, mode, getattr(args, "atom14", None))
+    return _CONTEXTS[key]
+
+
 def flow_losses(model, batch, args, device, augment=False, generator=None, mask_t=None):
-    cube, pos, mask, restype, _ = batch
+    """Retourne (loss flow, loss geometrique, loss liaison peptidique)."""
+    cube, pos, mask, restype, idx = batch
+    ctxdata = get_context(args)
+    nb = ctxdata.batch(idx, device) if ctxdata is not None else None
     cube, pos, mask, restype = (cube.to(device), pos.to(device), mask.to(device),
                                 restype.to(device))
     if mask_t is not None:
@@ -99,17 +128,21 @@ def flow_losses(model, batch, args, device, augment=False, generator=None, mask_
         cube = rotate_batch_continuous(cube, R)
         if mask_t is not None:
             cube = cube * mask_t
-        pos = rotate_coords(pos, coord_rotation_from_grid(R))
+        M = coord_rotation_from_grid(R)
+        pos = rotate_coords(pos, M)
+        if nb is not None:
+            nb = rotate_context(nb, M)
     B = cube.shape[0]
     pm = predicted_mask(mask)
     y1 = pos / args.coord_scale * pm.unsqueeze(-1)
     if getattr(args, "autoregressive", False):
-        return _ar_losses(model, cube, pos, y1, mask, restype, pm, args, generator)
+        return _ar_losses(model, cube, pos, y1, mask, restype, pm, args, generator, nb)
     y0 = sample_noise(mask, args.sigma, generator)
     t = torch.rand(B, device=device, generator=generator)
     tt = t[:, None, None]
     y_t = (1 - tt) * y0 + tt * y1
-    v = model(cube, y_t, t, restype, mask)
+    cc = model_context(nb)
+    v = model(cube, y_t, t, restype, mask, **({"ca_ctx": cc} if cc is not None else {}))
 
     w = pm.float()
     loss_flow = (((v - (y1 - y0)) ** 2).sum(-1) * w).sum() / w.sum().clamp(min=1)
@@ -120,10 +153,12 @@ def flow_losses(model, batch, args, device, augment=False, generator=None, mask_
     hub = F.huber_loss(err, torch.zeros_like(err), reduction="none", delta=0.5)
     vw = valid.float() * t[:, None]
     loss_geom = (hub * vw).sum() / valid.float().sum().clamp(min=1)
-    return loss_flow, loss_geom
+    loss_pep = (peptide_loss(x1_hat, pos, nb, t[:, None].expand(-1, N_SLOTS))
+                if nb is not None else loss_geom.new_zeros(()))
+    return loss_flow, loss_geom, loss_pep
 
 
-def _ar_losses(model, cube, pos, y1, mask, restype, pm, args, generator):
+def _ar_losses(model, cube, pos, y1, mask, restype, pm, args, generator, nb=None):
     B = cube.shape[0]
     dev = cube.device
     ctx = y1
@@ -138,7 +173,7 @@ def _ar_losses(model, cube, pos, y1, mask, restype, pm, args, generator):
     t = torch.gather(t_blk, 1, rk.clamp(max=N_SLOTS))
     tt = t[..., None]
     y_t = (1 - tt) * y0 + tt * y1
-    v = model(cube, y_t, t, restype, mask, ctx=ctx)
+    v = model(cube, y_t, t, restype, mask, ctx=ctx, ca_ctx=model_context(nb))
 
     w = pm.float()
     loss_flow = (((v - (y1 - y0)) ** 2).sum(-1) * w).sum() / w.sum().clamp(min=1)
@@ -162,7 +197,8 @@ def _ar_losses(model, cube, pos, y1, mask, restype, pm, args, generator):
     hub = F.huber_loss(d_hat - d_true, torch.zeros_like(d_hat), reduction="none", delta=0.5)
     vw = valid.float() * torch.gather(t, 1, late)
     loss_geom = (hub * vw).sum() / valid.float().sum().clamp(min=1)
-    return loss_flow, loss_geom
+    loss_pep = peptide_loss(x1_hat, pos, nb, t) if nb is not None else loss_geom.new_zeros(())
+    return loss_flow, loss_geom, loss_pep
 
 
 def ar_groups(args):
@@ -185,12 +221,12 @@ def run_epoch(model, loader, args, device, optimizer=None, augment=False, seed=N
     if seed is not None:
         gen = torch.Generator(device=device)
         gen.manual_seed(seed)
-    tot = {"loss": 0.0, "loss_flow": 0.0, "loss_geom": 0.0}
+    tot = {"loss": 0.0, "loss_flow": 0.0, "loss_geom": 0.0, "loss_pep": 0.0}
     n = 0
     for batch in tqdm(loader, leave=False):
         with torch.set_grad_enabled(train):
-            lf, lg = flow_losses(model, batch, args, device, augment, gen, mask_t)
-            loss = lf + args.geom_weight * lg
+            lf, lg, lp = flow_losses(model, batch, args, device, augment, gen, mask_t)
+            loss = lf + args.geom_weight * lg + getattr(args, "pep_weight", 0.0) * lp
             if train:
                 optimizer.zero_grad()
                 loss.backward()
@@ -201,6 +237,7 @@ def run_epoch(model, loader, args, device, optimizer=None, augment=False, seed=N
         tot["loss"] += loss.item() * bs
         tot["loss_flow"] += lf.item() * bs
         tot["loss_geom"] += lg.item() * bs
+        tot["loss_pep"] += lp.item() * bs
     return {k: v / max(n, 1) for k, v in tot.items()}
 
 
@@ -210,17 +247,20 @@ def generate(model, loader, args, device, seed=0, mask_t=None, desc=None):
     gen = torch.Generator(device=device)
     gen.manual_seed(seed)
     preds, gts, masks, rts, idxs = [], [], [], [], []
+    ctxdata = get_context(args) if (getattr(args, "ca_context", None) or "none") != "none" \
+        else None
     for cube, pos, mask, restype, idx in tqdm(loader, leave=False, desc=desc):
         cube, mask, restype = cube.to(device), mask.to(device), restype.to(device)
         if mask_t is not None:
             cube = cube * mask_t
+        cc = model_context(ctxdata.batch(idx, device)) if ctxdata is not None else None
         if getattr(args, "autoregressive", False):
             pred = sample_atoms_ar(model, cube, restype, mask, args.sample_steps,
                                    ar_sigma(args), args.coord_scale, args.ar_noise_center, gen,
-                                   ar_groups(args))
+                                   ar_groups(args), ca_ctx=cc)
         else:
             pred = sample_atoms(model, cube, restype, mask, args.sample_steps, args.sigma,
-                                args.coord_scale, gen)
+                                args.coord_scale, gen, ca_ctx=cc)
         preds.append(pred.cpu().numpy())
         gts.append(pos.numpy().copy())  # copies : liberent la memoire partagee des workers
         masks.append(mask.cpu().numpy().copy())
@@ -246,6 +286,13 @@ def main():
                    help="A par unite normalisee (atomes a <= ~8 A du C-alpha)")
     p.add_argument("--sigma", type=float, default=1.0,
                    help="ecart-type du bruit initial (unites normalisees)")
+    p.add_argument("--ca-context", choices=CA_CONTEXTS, default="none",
+                   help="(cnn) C-alpha voisins en entree : chain (i-1, i+1 ordonnes), "
+                        "knn (les plus proches, sans ordre)")
+    p.add_argument("--ca-context-file", default=None,
+                   help="npz de extract_ca_context.py (requis par --ca-context et --pep-weight)")
+    p.add_argument("--pep-weight", type=float, default=0.0,
+                   help="poids de la loss sur la liaison peptidique avec les residus voisins")
     p.add_argument("--geom-weight", type=float, default=1.0,
                    help="poids de la loss geometrique (0 = desactivee)")
     p.add_argument("--sample-steps", type=int, default=20,
@@ -292,8 +339,14 @@ def main():
         args.autoregressive = True
     if args.autoregressive and args.model != "cnn":
         p.error("--autoregressive n'est disponible qu'avec --model cnn")
+    if args.ca_context != "none" and args.model != "cnn":
+        p.error("--ca-context n'est disponible qu'avec --model cnn")
+    if (args.ca_context != "none" or args.pep_weight > 0) and not args.ca_context_file:
+        p.error("--ca-context / --pep-weight : donner --ca-context-file (extract_ca_context.py)")
     suffix = ("" if not args.autoregressive else
               "_ar" if args.ar_groups == "atom" else f"_ar_{args.ar_groups}")
+    suffix += ("" if args.ca_context == "none" else f"_{args.ca_context}")
+    suffix += "_pep" if args.pep_weight > 0 else ""
     args.out_dir = args.out_dir or f"runs/flow_{args.model}{suffix}"
     os.makedirs(args.out_dir, exist_ok=True)
     ckpt_path = os.path.join(args.out_dir, "best_model.pt")
@@ -342,7 +395,8 @@ def main():
         scheduler.step()
         history.log(epoch, tr, va, lr=lr)
         msg = (f"Epoch {epoch:03d} | train loss={tr['loss']:.4f} (flow {tr['loss_flow']:.4f}, "
-               f"geom {tr['loss_geom']:.4f}) | val loss={va['loss']:.4f}")
+               f"geom {tr['loss_geom']:.4f}, pep {tr['loss_pep']:.4f}) | "
+               f"val loss={va['loss']:.4f}")
         if "rmsd_mean" in va:
             msg += (f" RMSD={va['rmsd_mean']:.3f} A (sc {va['rmsd_sidechain_mean']:.3f}) "
                     f"<1A={va['frac_rmsd_lt_1A']:.3f} liaisons={va['bond_err_mean']:.3f} A")

@@ -53,6 +53,8 @@ def main():
     p.add_argument("--num-workers", type=int, default=4)
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--write-pdb", action="store_true")
+    p.add_argument("--ca-context-file", default=None,
+                   help="(modeles --ca-context) remplace le chemin enregistre a l'entrainement")
     p.add_argument("--out-dir", default="runs/evaluation_flow")
     p.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     args = p.parse_args()
@@ -72,7 +74,9 @@ def main():
         a = ck["args"]
         model = build_flow_model(ck["model_type"], a).to(device)
         model.load_state_dict(ck["model_state_dict"])
-        a = dict(a, sample_steps=args.sample_steps)
+        a = dict(a, sample_steps=args.sample_steps, atom14=args.atom14)
+        if args.ca_context_file:
+            a["ca_context_file"] = args.ca_context_file
         ns = argparse.Namespace(**a)
         mask_t = None if a.get("no_spherical_mask") else spherical_mask_t(20, device)
         seen = set(ck.get("train_pdb_ids", [])) | set(ck.get("val_pdb_ids", []))
