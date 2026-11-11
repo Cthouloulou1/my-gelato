@@ -16,7 +16,12 @@ Pour comparer les modes joint / un atome a la fois / backbone / hybride :
   3. exposure bias : erreur locale de l'atome en fonction de l'erreur de son
      parent (rangs >= 5). Si elle croit beaucoup plus vite pour un modele
      sequentiel que pour le joint, le modele "decroche" quand son contexte
-     est faux.
+     est faux ;
+  4. (avec --atom14, --splits, --set) liaison peptidique ENTRE residus
+     consecutifs, chacun predit separement : longueur C(i)-N(i+1) (1.33 A),
+     distances 1-3 a travers la liaison (CA(i)-N(i+1), O(i)-N(i+1),
+     C(i)-CA(i+1)) et angle diedre omega CA-C-N-CA (plan peptidique, ~180),
+     comparees aux vraies valeurs.
 
 Les atomes symetriques (ASP, GLU, PHE, TYR) sont renumerotes au mieux, par
 residu, comme pour le RMSD.
@@ -27,6 +32,10 @@ Usage :
         --pred atome=runs/flow_cnn_ar/val_best_predictions.npz \
         --pred hybride=runs/flow_cnn_ar_hybrid/val_best_predictions.npz \
         --out-dir runs/analysis_val
+
+    Liaison peptidique (4.) : ajouter
+        --atom14 /data/eyerly/splits_atom14.npz \
+        --splits /data/eyerly/pdb_cryoem_splits/splits.json --set val
 """
 
 import argparse
@@ -35,7 +44,9 @@ import os
 
 import numpy as np
 
-from flow_common import ATOM14, CA_SLOT, PARENT, PERM_SYM, RANK, STANDARD
+import json
+
+from flow_common import ATOM14, CA_SLOT, PARENT, PERM_SYM, RANK, STANDARD, prediction_indices
 
 GLY = STANDARD.index("GLY")
 PARENT_BINS = [0.0, 0.5, 1.0, 2.0, 4.0, np.inf]
@@ -69,12 +80,106 @@ def chain_flip(pred, gt, sel):
     return float(np.mean(n_c & c_n)) if sel.any() else float("nan")
 
 
+N_, CA_, C_, O_ = 0, 1, 2, 3
+
+
+def _dihedral(p0, p1, p2, p3):
+    b0, b1, b2 = p0 - p1, p2 - p1, p3 - p2
+    b1n = b1 / np.linalg.norm(b1, axis=-1, keepdims=True)
+    v = b0 - (b0 * b1n).sum(-1, keepdims=True) * b1n
+    w = b2 - (b2 * b1n).sum(-1, keepdims=True) * b1n
+    x = (v * w).sum(-1)
+    y = (np.cross(b1n, v) * w).sum(-1)
+    return np.degrees(np.arctan2(y, x))
+
+
+def consecutive_pairs(idx, a14, max_cn=2.0):
+    """Paires (ligne i, ligne j) de residus consecutifs (meme entree, meme
+    chaine, numero + 1, vraie liaison C-N < max_cn A) parmi les predits."""
+    key = {(str(a14["pdb_ids"][k]), str(a14["chains"][k]), int(a14["seqids"][k])): r
+           for r, k in enumerate(idx)}
+    pairs = []
+    for r, k in enumerate(idx):
+        j = key.get((str(a14["pdb_ids"][k]), str(a14["chains"][k]), int(a14["seqids"][k]) + 1))
+        if j is not None:
+            pairs.append((r, j))
+    pairs = np.array(pairs, dtype=np.int64).reshape(-1, 2)
+    if len(pairs):
+        ca = a14["ca_xyz"][idx]
+        c_i = ca[pairs[:, 0]] + a14["pos"][idx[pairs[:, 0]], C_]
+        n_j = ca[pairs[:, 1]] + a14["pos"][idx[pairs[:, 1]], N_]
+        pairs = pairs[np.linalg.norm(c_i - n_j, axis=-1) < max_cn]
+    return pairs
+
+
+def peptide_geometry(rel, idx, a14, pairs):
+    """Distances et omega a travers la liaison peptidique (positions
+    relatives au CA -> absolues)."""
+    x = a14["ca_xyz"][idx][:, None, :] + rel
+    x[:, CA_] = a14["ca_xyz"][idx]
+    a, b = x[pairs[:, 0]], x[pairs[:, 1]]
+
+    def d(p, q):
+        return np.linalg.norm(p - q, axis=-1)
+
+    return {"C-N": d(a[:, C_], b[:, N_]),
+            "CA-N": d(a[:, CA_], b[:, N_]), "O-N": d(a[:, O_], b[:, N_]),
+            "C-CA": d(a[:, C_], b[:, CA_]),
+            "omega": _dihedral(a[:, CA_], a[:, C_], b[:, N_], b[:, CA_])}
+
+
+def peptide_section(args, out_rows):
+    with open(args.splits) as f:
+        set_ids = json.load(f)[args.set]
+    z = np.load(args.atom14, allow_pickle=False)
+    a14 = {k: z[k] for k in ("pos", "pdb_ids", "chains", "seqids", "ca_xyz")}
+    print(f"\n4. Liaison peptidique entre residus consecutifs ({args.set}), chaque residu "
+          f"etant predit separement")
+    hdr = (f"{'':>16s} {'paires':>7s} {'C-N moy':>8s} {'|err C-N|':>9s} {'>0.1 A':>7s} "
+           f"{'>0.3 A':>7s} {'|err 1-3|':>9s} {'|err omega|':>11s} {'omega<150':>9s}")
+    print(hdr)
+    true_printed = False
+    for item in args.pred:
+        name, path = item.split("=", 1)
+        d = np.load(path)
+        idx = prediction_indices(d, a14["pdb_ids"], a14["pos"], set_ids, path)
+        pairs = consecutive_pairs(idx, a14)
+        if not len(pairs):
+            print(f"{name:>16s} aucune paire de residus consecutifs")
+            continue
+        gt = peptide_geometry(a14["pos"][idx], idx, a14, pairs)
+        pr = peptide_geometry(d["pred"], idx, a14, pairs)
+        if not true_printed:
+            print(f"{'vrai':>16s} {len(pairs):7d} {gt['C-N'].mean():8.3f} {'':>9s} {'':>7s} "
+                  f"{'':>7s} {'':>9s} {'':>11s} {np.mean(np.abs(gt['omega']) < 150):9.1%}")
+            true_printed = True
+        err = np.abs(pr["C-N"] - gt["C-N"])
+        e13 = np.mean([np.abs(pr[k] - gt[k]) for k in ("CA-N", "O-N", "C-CA")], axis=0)
+        dom = np.abs((pr["omega"] - gt["omega"] + 180) % 360 - 180)
+        row = {"modele": name, "paires": len(pairs), "C-N_moyen": float(pr["C-N"].mean()),
+               "C-N_vrai_moyen": float(gt["C-N"].mean()), "err_C-N": float(err.mean()),
+               "frac_err_C-N_gt_0.1": float(np.mean(err > 0.1)),
+               "frac_err_C-N_gt_0.3": float(np.mean(err > 0.3)),
+               "err_1-3": float(e13.mean()), "err_omega_deg": float(dom.mean()),
+               "frac_omega_lt_150": float(np.mean(np.abs(pr["omega"]) < 150))}
+        out_rows.append(row)
+        print(f"{name:>16s} {len(pairs):7d} {row['C-N_moyen']:8.3f} {row['err_C-N']:9.3f} "
+              f"{row['frac_err_C-N_gt_0.1']:7.1%} {row['frac_err_C-N_gt_0.3']:7.1%} "
+              f"{row['err_1-3']:9.3f} {row['err_omega_deg']:11.1f} "
+              f"{row['frac_omega_lt_150']:9.1%}")
+    print("  (|err| : ecart a la vraie valeur, A ; omega : diedre CA-C-N-CA, degres ; "
+          "omega<150 : plan peptidique tordu)")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--pred", action="append", required=True, help="nom=chemin.npz")
     ap.add_argument("--max-rank", type=int, default=10)
     ap.add_argument("--out-dir", default=None, help="ecrit les tables en CSV si donne")
+    ap.add_argument("--atom14", default=None, help="(4.) atom14.npz de l'evaluation")
+    ap.add_argument("--splits", default=None, help="(4.) splits.json")
+    ap.add_argument("--set", default=None, help="(4.) ensemble des predictions, ex. val")
     args = ap.parse_args()
 
     res = {}
@@ -138,10 +243,19 @@ def main():
         bin_rows.append(row)
         print(f"{n:>16s}  " + "  ".join(f"{row[lab]:9.3f}" for lab in labels))
 
+    pep_rows = []
+    if args.atom14 and args.splits and args.set:
+        peptide_section(args, pep_rows)
+    elif args.atom14 or args.splits or args.set:
+        print("\n4. ignore : il faut --atom14, --splits et --set")
+
     if args.out_dir:
         os.makedirs(args.out_dir, exist_ok=True)
         for fname, rows in (("error_by_rank.csv", rank_rows), ("chain_flip.csv", flip_rows),
-                            ("local_vs_parent_error.csv", bin_rows)):
+                            ("local_vs_parent_error.csv", bin_rows),
+                            ("peptide_bond.csv", pep_rows)):
+            if not rows:
+                continue
             with open(os.path.join(args.out_dir, fname), "w", newline="") as f:
                 w = csv.DictWriter(f, fieldnames=list(rows[0]))
                 w.writeheader()

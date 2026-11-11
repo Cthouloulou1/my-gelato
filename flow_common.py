@@ -594,6 +594,21 @@ def save_flow_reports(pred, gt, mask, restype, out_dir, prefix, title="", extra=
     return agg
 
 
+def prediction_indices(d, a14_pdb_ids, a14_pos, set_ids, path=""):
+    """Indices dans atom14.npz des residus d'un fichier *_predictions.npz (d).
+    Anciens fichiers sans 'idx' : ordre de evaluate_flow (residus de
+    l'ensemble dans l'ordre de atom14.npz). Verifie sur les vraies positions."""
+    if "idx" in d.files:
+        idx = np.asarray(d["idx"])
+    else:
+        ids = set(set_ids)
+        idx = np.array([i for i, p in enumerate(a14_pdb_ids) if str(p) in ids], dtype=np.int64)
+    if len(idx) != len(d["gt"]) or not np.allclose(d["gt"], a14_pos[idx], atol=1e-3):
+        raise SystemExit(f"{path} : impossible de retrouver les residus (fichier d'un autre "
+                         f"ensemble, ou atom14.npz different de celui de l'evaluation ?)")
+    return idx
+
+
 # ---------------------------------------------------------------------------
 # Export PDB (visualisation dans ChimeraX / PyMOL)
 # ---------------------------------------------------------------------------

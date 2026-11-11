@@ -41,7 +41,7 @@ import os
 
 import numpy as np
 
-from flow_common import ATOM14, CA_SLOT, STANDARD
+from flow_common import ATOM14, CA_SLOT, prediction_indices
 from train_utils import CATEGORICAL, TEXT_SECONDARY
 
 VARIANT_ORDER = ["joint", "atome", "backbone", "hybride"]
@@ -64,14 +64,7 @@ def load_predictions(path, a14, set_ids):
     Anciens fichiers sans 'idx' : ordre de evaluate_flow (residus de
     l'ensemble dans l'ordre de atom14.npz), verifie sur les vraies positions."""
     d = np.load(path)
-    if "idx" in d.files:
-        idx = d["idx"]
-    else:
-        ids = set(set_ids)
-        idx = np.array([i for i, p in enumerate(a14["pdb_ids"]) if str(p) in ids])
-    if len(idx) != len(d["gt"]) or not np.allclose(d["gt"], a14["pos"][idx], atol=1e-3):
-        raise SystemExit(f"{path} : impossible de retrouver les residus (fichier d'un autre "
-                         f"ensemble, ou atom14.npz different de celui de l'evaluation ?)")
+    idx = prediction_indices(d, a14["pdb_ids"], a14["pos"], set_ids, path)
     return d["pred"], d["rmsd"], idx
 
 
