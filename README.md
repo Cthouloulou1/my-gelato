@@ -22,6 +22,8 @@ Deux modèles : un réseau **équivariant SO(3)** (e3nn, nuage de points) et un 
 | `evaluate_flow.py` | Évalue les modèles de flow sur les tests (RMSD par résolution et par type d'AA, PDB) |
 | `merge_evaluations.py` | Regroupe plusieurs dossiers d'évaluation en une comparaison (tables par métrique, Markdown, figure), sans relancer d'inférence |
 | `analyze_flow_errors.py` | Analyse des erreurs de flow : erreur par rang de placement, sens de la chaîne (N/C inversés), exposure bias, à partir des `*_predictions.npz` |
+| `summarize_seeds.py` | Résumé multi-seeds des évaluations de flow : moyenne ± écart-type, écart à une référence, figures avec barres d'erreur |
+| `run_flow_e100.sh` / `run_flow_seeds.sh` | Enchaînent les entraînements des variantes de flow (100 epochs ; seeds supplémentaires), l'évaluation et l'analyse |
 | `replot_reports.py` | Régénère confusion / ROC / AUC par classe à partir des `*_predictions.npz`, sans relancer d'inférence |
 | `test_model.py` | Évaluation simple d'un checkpoint équivariant sur un JSON `{"test": [...]}` |
 | `diagnostics.py` | Diagnostics : surapprentissage d'un petit lot, baselines simples, hétérogénéité entre cartes, métadonnées |
@@ -225,6 +227,18 @@ Sorties par modèle et ensemble : métriques, RMSD par type d'AA (CSV + PNG), co
 RMSD, et avec `--write-pdb` un fichier `<PDB>_pred.pdb` et `<PDB>_true.pdb` par entrée à ouvrir avec
 la carte dans ChimeraX. RMSD : atomes lourds hors Cα ; pour ASP, GLU, PHE et TYR, la meilleure des
 deux numérotations des atomes symétriques est retenue.
+
+Plusieurs seeds : `bash run_flow_seeds.sh` entraîne les seeds 1 et 2 (`SEEDS="1 2"`) du joint, du
+backbone et de l'hybride, en plus du seed 42 de `run_flow_e100.sh`, les évalue, puis résume tout en
+moyenne ± écart-type (`runs/seeds_flow_e100/` : `seeds_summary.md`, `seeds_comparison.png`,
+`seeds_per_restype_<ensemble>.png`). Le résumé seul :
+
+```bash
+python summarize_seeds.py runs/evaluation_flow_e100 runs/evaluation_flow_e100_seeds \
+    --ref joint --out-dir runs/seeds_flow_e100
+```
+
+Les modèles d'une même variante sont regroupés par leur nom sans le suffixe `_s<seed>`.
 
 Analyse fine (sans inférence) à partir des prédictions sauvegardées : erreur par rang de placement
 (même ordre pour tous les modèles : N, C, CB, O, CG…), avec l'erreur « locale » du vecteur
