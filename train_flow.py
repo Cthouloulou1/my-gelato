@@ -359,11 +359,12 @@ def main():
     print("\n=== Entrainement termine ===")
     ck = torch.load(ckpt_path, map_location=device, weights_only=False)
     model.load_state_dict(ck["model_state_dict"])
-    pred, gt, m, rt, _ = generate(model, val_loader, args, device, mask_t=mask_t,
-                                  desc="generation val complete")
+    pred, gt, m, rt, ii = generate(model, val_loader, args, device, mask_t=mask_t,
+                                   desc="generation val complete")
     agg = save_flow_reports(pred, gt, m, rt, args.out_dir, "val_best",
                             title=f"Flow {args.model} - val (epoch {ck['epoch']})",
-                            extra={"best_epoch": ck["epoch"], "sample_steps": args.sample_steps})
+                            extra={"best_epoch": ck["epoch"], "sample_steps": args.sample_steps},
+                            idx=ii)
     print(f"Val (meilleur checkpoint, epoch {ck['epoch']}) : RMSD moyen {agg['rmsd_mean']:.3f} A, "
           f"median {agg['rmsd_median']:.3f} A, chaine laterale {agg['rmsd_sidechain_mean']:.3f} A, "
           f"<1A {agg['frac_rmsd_lt_1A']:.3f}, liaisons {agg['bond_err_mean']:.3f} A")
