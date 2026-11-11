@@ -555,9 +555,11 @@ def plot_rmsd_cdf(curves, path, title=""):
     plt.close(fig)
 
 
-def save_flow_reports(pred, gt, mask, restype, out_dir, prefix, title="", extra=None):
+def save_flow_reports(pred, gt, mask, restype, out_dir, prefix, title="", extra=None, idx=None):
     """Ecrit <prefix>_metrics.json, _per_restype.csv, _rmsd_per_restype.png,
-    _rmsd_cdf.png, _predictions.npz. Retourne les metriques agregees."""
+    _rmsd_cdf.png, _predictions.npz. Retourne les metriques agregees.
+    idx : indices des residus dans atom14.npz (sauves pour retrouver chaine,
+    numero et position du C-alpha, cf. make_chimerax_view.py)."""
     os.makedirs(out_dir, exist_ok=True)
     restype = np.asarray(restype)
     per_res = residue_metrics(pred, gt, mask, restype)
@@ -587,7 +589,8 @@ def save_flow_reports(pred, gt, mask, restype, out_dir, prefix, title="", extra=
     plot_rmsd_cdf([(prefix, per_res["rmsd"])], base + "_rmsd_cdf.png", title)
     np.savez_compressed(base + "_predictions.npz", pred=np.asarray(pred, np.float32),
                         gt=np.asarray(gt, np.float32), mask=np.asarray(mask),
-                        restype=restype, **{k: v for k, v in per_res.items()})
+                        restype=restype, **{k: v for k, v in per_res.items()},
+                        **({} if idx is None else {"idx": np.asarray(idx, np.int64)}))
     return agg
 
 

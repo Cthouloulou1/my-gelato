@@ -93,7 +93,7 @@ def main():
             pred, gt, m, rt, ii = generate(model, loader, ns, device, seed=args.seed,
                                            mask_t=mask_t, desc=key)
             agg = save_flow_reports(pred, gt, m, rt, out, key, title=f"{name} - {key}",
-                                    extra={"sample_steps": args.sample_steps})
+                                    extra={"sample_steps": args.sample_steps}, idx=ii)
             r = np.load(os.path.join(out, f"{key}_predictions.npz"))["rmsd"]
             curves.append((key, r))
             print(f"  [{key}] n={agg['n_residues']:6d}  RMSD moyen {agg['rmsd_mean']:.3f} A  "

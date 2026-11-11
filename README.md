@@ -22,6 +22,7 @@ Deux modèles : un réseau **équivariant SO(3)** (e3nn, nuage de points) et un 
 | `evaluate_flow.py` | Évalue les modèles de flow sur les tests (RMSD par résolution et par type d'AA, PDB) |
 | `merge_evaluations.py` | Regroupe plusieurs dossiers d'évaluation en une comparaison (tables par métrique, Markdown, figure), sans relancer d'inférence |
 | `analyze_flow_errors.py` | Analyse des erreurs de flow : erreur par rang de placement, sens de la chaîne (N/C inversés), exposure bias, à partir des `*_predictions.npz` |
+| `make_chimerax_view.py` | Session ChimeraX d'une portion de protéine : vraie structure, résidus reconstruits par chaque modèle et carte de densité, à partir des prédictions sauvegardées |
 | `summarize_seeds.py` | Résumé multi-seeds des évaluations de flow : moyenne ± écart-type, écart à une référence, figures avec barres d'erreur |
 | `run_flow_e100.sh` / `run_flow_seeds.sh` | Enchaînent les entraînements des variantes de flow (100 epochs ; seeds supplémentaires), l'évaluation et l'analyse |
 | `replot_reports.py` | Régénère confusion / ROC / AUC par classe à partir des `*_predictions.npz`, sans relancer d'inférence |
@@ -227,6 +228,21 @@ Sorties par modèle et ensemble : métriques, RMSD par type d'AA (CSV + PNG), co
 RMSD, et avec `--write-pdb` un fichier `<PDB>_pred.pdb` et `<PDB>_true.pdb` par entrée à ouvrir avec
 la carte dans ChimeraX. RMSD : atomes lourds hors Cα ; pour ASP, GLU, PHE et TYR, la meilleure des
 deux numérotations des atomes symétriques est retenue.
+
+Visualisation dans ChimeraX, sans relancer d'inférence : pour une entrée d'un ensemble, une portion
+de résidus consécutifs (`--window 12`) avec la vraie structure (gris, plus épaisse), les résidus
+reconstruits par chaque modèle (une couleur par modèle), la carte EMDB en maillage autour de la
+portion et les étiquettes. Le B-factor des modèles prédits contient le RMSD du résidu, pour les
+colorer par erreur. Portion choisie par `--pick median` (représentative, défaut), `best`, `worst`,
+`aromatic` (la plus riche en cycles), ou imposée par `--residues A:50-61` ; `--list` affiche les
+entrées avec leur RMSD par modèle.
+
+```bash
+python make_chimerax_view.py --atom14 /data/eyerly/splits_atom14.npz \
+    --splits /data/eyerly/pdb_cryoem_splits/splits.json \
+    --eval-dir runs/evaluation_flow_e100 --set test_1_2A --pick aromatic
+chimerax runs/chimerax/test_1_2A_<PDB>_<chaine><debut>-<fin>/view.cxc
+```
 
 Plusieurs seeds : `bash run_flow_seeds.sh` entraîne les seeds 1 et 2 (`SEEDS="1 2"`) du joint, du
 backbone et de l'hybride, en plus du seed 42 de `run_flow_e100.sh`, les évalue, puis résume tout en
