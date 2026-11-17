@@ -38,6 +38,8 @@ places en BLOC (un flow joint par bloc, meme temps t, les atomes du bloc se
 voient), les blocs les uns apres les autres :
     backbone : N, C, O, CB d'un coup, puis la chaine laterale atome par atome
     hybrid   : idem, et chaque cycle d'un coup (PHE/TYR, HIS, TRP, PRO)
+    backbone_nco, hybrid_nco : bloc N, C, O seulement, puis CB seul (evite les
+               C-alpha inverses, cf. flow_common.AR_GROUPS)
 Le bruit de depart d'un atome est centre sur l'atome deja place le plus
 proche dans l'arbre des liaisons (C-alpha pour le bloc backbone, CB pour un
 cycle). Dossier par defaut : runs/flow_cnn_ar_<groupes>.

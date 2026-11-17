@@ -23,6 +23,7 @@ Deux modèles : un réseau **équivariant SO(3)** (e3nn, nuage de points) et un 
 | `merge_evaluations.py` | Regroupe plusieurs dossiers d'évaluation en une comparaison (tables par métrique, Markdown, figure), sans relancer d'inférence |
 | `analyze_flow_errors.py` | Analyse des erreurs de flow : erreur par rang de placement, sens de la chaîne (N/C inversés), exposure bias, à partir des `*_predictions.npz` |
 | `extract_ca_context.py` | Contexte des Cα voisins de chaque résidu (i−1/i+1, ou les plus proches sans ordre) et vrais atomes du squelette voisin, lus dans les `.cif` |
+| `run_flow_nco.sh` | Entraîne les variantes `_nco` (bloc N, C, O puis CB), les évalue et les compare aux modèles e100 |
 | `run_flow_context.sh` | Entraîne les variantes hybrides avec Cα voisins et loss sur la liaison peptidique, puis évalue et analyse |
 | `analyze_flow_geometry.py` | Nature des erreurs (sens de chaîne, orientation du squelette, rotamère χ1–χ4, décalage) et chimie (liaisons, angles, chiralité, planéité des cycles, contacts), à partir des `*_predictions.npz` |
 | `make_chimerax_view.py` | Session ChimeraX d'une portion de protéine : vraie structure, résidus reconstruits par chaque modèle et carte de densité, à partir des prédictions sauvegardées |
@@ -200,6 +201,8 @@ les uns après les autres.
 | `atom` (défaut) | N · C · CB · O · CG · CD1 · CD2 · CE1 · CE2 · CZ · OH (un atome par bloc) |
 | `backbone` | {N, C, O, CB} · CG · CD1 · … · OH |
 | `hybrid` | {N, C, O, CB} · {CG, CD1, CD2, CE1, CE2, CZ} · OH |
+| `backbone_nco` | {N, C, O} · CB · CG · CD1 · … · OH |
+| `hybrid_nco` | {N, C, O} · CB · {CG, CD1, CD2, CE1, CE2, CZ} · OH |
 
 Cycles placés d'un coup en mode `hybrid` : benzène de PHE/TYR, imidazole de HIS (azotes compris),
 indole entier de TRP, CG + CD de PRO. Le bruit de départ d'un atome est centré sur l'atome déjà
@@ -208,6 +211,12 @@ Motivation : en mode `atom`, N est placé seul en premier, avant que rien d'autr
 le sens de la chaîne de la glycine (sans CB, densité presque symétrique entre N et C) est inversé
 deux fois plus souvent qu'en mode joint ; fermer un cycle atome par atome propage l'erreur
 d'orientation du début du cycle. `backbone` seul permet de mesurer l'apport de chaque idée.
+
+Les variantes `_nco` placent le CB après N et C, seul, comme en mode `atom`. Dans le même bloc que N et
+C, le CB peut converger vers l'image miroir quand la densité est floue : le Cα est alors inversé
+(acide aminé D), jusqu'à 12 % des résidus à 3–4 Å avec `backbone` / `hybrid`, contre 0 % en mode
+`atom` (`analyze_flow_geometry.py`). `bash run_flow_nco.sh` entraîne `hybrid_nco` et `backbone_nco`,
+les évalue et les compare aux modèles e100.
 
 ```bash
 python train_flow.py --model cnn --ar-groups hybrid --lmdb-path /data/eyerly/splits_preprocessed.lmdb \

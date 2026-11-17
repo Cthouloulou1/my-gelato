@@ -192,8 +192,15 @@ N_ATOMS = ATOM_MASK.sum(1)                      # atomes par type (C-alpha compr
 #   hybrid   : backbone comme ci-dessus, et chaque cycle d'un coup (atomes du
 #              cycle, azotes compris : PHE/TYR benzene, HIS imidazole, TRP indole
 #              entier, PRO CG+CD qui ferment le cycle sur N)
-AR_GROUPS = ("atom", "backbone", "hybrid")
+#   backbone_nco, hybrid_nco : idem, mais le bloc du squelette est N, C, O
+#              seulement ; le CB est place ensuite, seul, avec N et C deja
+#              connus (comme en mode atom). Place dans le meme bloc que N et C,
+#              le CB pouvait converger vers l'image miroir quand la densite est
+#              floue (C-alpha inverse = acide amine D) : jusqu'a 12 % des
+#              residus a 3-4 A avec backbone/hybrid, 0 % en mode atom.
+AR_GROUPS = ("atom", "backbone", "hybrid", "backbone_nco", "hybrid_nco")
 _BACKBONE_BLOCK = ("N", "C", "O", "CB")
+_BACKBONE_BLOCK_NCO = ("N", "C", "O")
 _RING_BLOCKS = {
     "PHE": ("CG", "CD1", "CD2", "CE1", "CE2", "CZ"),
     "TYR": ("CG", "CD1", "CD2", "CE1", "CE2", "CZ"),
@@ -216,8 +223,9 @@ def _build_steps(groups):
         names = ATOM14[res]
         blocks = []
         if groups != "atom":
-            blocks.append({names.index(a) for a in _BACKBONE_BLOCK if a in names})
-        if groups == "hybrid" and res in _RING_BLOCKS:
+            bb = _BACKBONE_BLOCK_NCO if groups.endswith("_nco") else _BACKBONE_BLOCK
+            blocks.append({names.index(a) for a in bb if a in names})
+        if groups.startswith("hybrid") and res in _RING_BLOCKS:
             blocks.append({names.index(a) for a in _RING_BLOCKS[res]})
         step[r, CA_SLOT] = 0
         k = 0
