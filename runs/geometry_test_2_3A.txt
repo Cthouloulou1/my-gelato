@@ -1,0 +1,47 @@
+
+1. Rotameres (chi juste si |delta| <= 40 deg)
+               chi1  chi1+2 complet   |dchi1|  |dchi2|  |dchi3|  |dchi4|
+     joint   60.6 %  43.3 %  40.1 %      48.0     48.4     65.2     79.6
+     atome   64.5 %  45.8 %  43.5 %      44.6     47.5     61.2     72.5
+  backbone   65.6 %  47.2 %  44.3 %      43.8     45.6     61.3     71.9
+   hybride   64.7 %  46.9 %  44.1 %      44.3     46.0     62.0     71.9
+
+   chi1 juste par type d'acide amine
+ type       joint       atome    backbone     hybride
+  ARG      45.9 %      51.0 %      57.3 %      52.6 %
+  ASN      63.3 %      65.5 %      65.7 %      64.9 %
+  ASP      55.3 %      60.1 %      62.3 %      61.4 %
+  CYS      57.0 %      62.5 %      64.8 %      65.3 %
+  GLN      52.2 %      59.7 %      60.8 %      57.7 %
+  GLU      46.9 %      55.8 %      54.7 %      52.1 %
+  HIS      77.7 %      75.6 %      76.9 %      76.4 %
+  ILE      72.2 %      74.5 %      72.5 %      72.5 %
+  LEU      68.7 %      73.8 %      74.2 %      74.9 %
+  LYS      60.2 %      66.7 %      64.5 %      65.5 %
+  MET      55.2 %      63.8 %      62.8 %      62.6 %
+  PHE      77.6 %      72.5 %      77.6 %      78.0 %
+  PRO      79.2 %      73.7 %      74.7 %      74.7 %
+  SER      41.4 %      52.2 %      51.5 %      51.1 %
+  THR      49.2 %      55.1 %      56.4 %      56.8 %
+  TRP      70.8 %      68.8 %      74.6 %      67.9 %
+  TYR      79.5 %      70.1 %      78.1 %      76.4 %
+  VAL      62.1 %      66.9 %      67.7 %      65.8 %
+
+2. Origine des erreurs : residus a RMSD > 1 A, classes en sens de chaine > orientation (> 30 deg) > rotamere > decalage
+             echecs  sens de chaine     orientation        rotamere        decalage   repere sc local  forme
+     joint   47.6 %    1.2 % (  3%)   24.3 % ( 51%)   20.5 % ( 43%)    1.6 % (  3%)    35.1d    1.252  0.550
+     atome   49.9 %    2.5 % (  5%)   26.4 % ( 53%)   19.3 % ( 39%)    1.8 % (  4%)    40.4d    1.245  0.544
+  backbone   45.6 %    1.9 % (  4%)   21.5 % ( 47%)   20.2 % ( 44%)    2.0 % (  4%)    33.3d    1.297  0.530
+   hybride   45.5 %    2.1 % (  5%)   21.8 % ( 48%)   20.0 % ( 44%)    1.7 % (  4%)    34.3d    1.315  0.533
+   (x % (y%) : x % de TOUS les residus, y % des echecs ; repere : erreur moyenne d'orientation du squelette ; sc local : RMSD chaine laterale dans le repere du squelette ; forme : RMSD apres superposition optimale du residu)
+
+3. Chimie (erreurs par rapport a la vraie structure)
+             liaisons   angles   CA (D) chiralite   cycles contacts
+      vrai                                           0.002    0.3 %
+     joint      0.031     3.33    0.4 %     0.4 %    0.030    0.5 %
+     atome      0.010     1.21    0.0 %     0.0 %    0.010    2.4 %
+  backbone      0.014     1.94    5.7 %     5.7 %    0.011    2.1 %
+   hybride      0.016     1.89    6.0 %     6.0 %    0.031    2.2 %
+   (liaisons : |ecart| moyen des longueurs, A ; angles : |ecart| moyen des angles de liaison, deg ; CA (D) : C-alpha inverse (acide amine D) ; chiralite : un centre chiral quelconque inverse (CA ou CB de ILE/THR) ; cycles : ecart RMS au plan, A ; contacts : residus avec 2 atomes non lies a < 2.5 A)
+
+Ecrit dans runs/geometry_test_2_3A
