@@ -24,6 +24,7 @@ Deux modèles : un réseau **équivariant SO(3)** (e3nn, nuage de points) et un 
 | `analyze_flow_errors.py` | Analyse des erreurs de flow : erreur par rang de placement, sens de la chaîne (N/C inversés), exposure bias, à partir des `*_predictions.npz` |
 | `extract_ca_context.py` | Contexte des Cα voisins de chaque résidu (i−1/i+1, ou les plus proches sans ordre) et vrais atomes du squelette voisin, lus dans les `.cif` |
 | `run_flow_context.sh` | Entraîne les variantes hybrides avec Cα voisins et loss sur la liaison peptidique, puis évalue et analyse |
+| `analyze_flow_geometry.py` | Nature des erreurs (sens de chaîne, orientation du squelette, rotamère χ1–χ4, décalage) et chimie (liaisons, angles, chiralité, planéité des cycles, contacts), à partir des `*_predictions.npz` |
 | `make_chimerax_view.py` | Session ChimeraX d'une portion de protéine : vraie structure, résidus reconstruits par chaque modèle et carte de densité, à partir des prédictions sauvegardées |
 | `summarize_seeds.py` | Résumé multi-seeds des évaluations de flow : moyenne ± écart-type, écart à une référence, figures avec barres d'erreur |
 | `run_flow_e100.sh` / `run_flow_seeds.sh` | Enchaînent les entraînements des variantes de flow (100 epochs ; seeds supplémentaires), l'évaluation et l'analyse |
@@ -230,6 +231,16 @@ Sorties par modèle et ensemble : métriques, RMSD par type d'AA (CSV + PNG), co
 RMSD, et avec `--write-pdb` un fichier `<PDB>_pred.pdb` et `<PDB>_true.pdb` par entrée à ouvrir avec
 la carte dans ChimeraX. RMSD : atomes lourds hors Cα ; pour ASP, GLU, PHE et TYR, la meilleure des
 deux numérotations des atomes symétriques est retenue.
+
+Nature des erreurs et chimie, sans inférence : précision des rotamères (χ juste à ±40°, χ1 par type
+d'acide aminé), classement des résidus à RMSD > 1 Å en sens de chaîne / orientation du squelette
+(> 30°) / rotamère / décalage, et mesures chimiques (écart des longueurs et des angles de liaison,
+Cα inversés = acides aminés D, planéité des cycles, contacts trop proches) :
+
+```bash
+python analyze_flow_geometry.py --pred joint=runs/evaluation_flow_e100/joint/val_predictions.npz \
+    --pred hybride=runs/evaluation_flow_e100/hybride/val_predictions.npz --out-dir runs/geometry_val
+```
 
 Visualisation dans ChimeraX, sans relancer d'inférence : pour une entrée d'un ensemble, une portion
 de résidus consécutifs (`--window 12`) avec la vraie structure (gris, plus épaisse), les résidus
