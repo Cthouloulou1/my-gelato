@@ -25,6 +25,7 @@ Deux modèles : un réseau **équivariant SO(3)** (e3nn, nuage de points) et un 
 | `extract_ca_context.py` | Contexte des Cα voisins de chaque résidu (i−1/i+1, ou les plus proches sans ordre) et vrais atomes du squelette voisin, lus dans les `.cif` |
 | `run_flow_nco.sh` | Entraîne les variantes `_nco` (bloc N, C, O puis CB), les évalue et les compare aux modèles e100 |
 | `run_flow_context.sh` | Entraîne les variantes hybrides avec Cα voisins et loss sur la liaison peptidique, puis évalue et analyse |
+| `run_flow_chi.sh` | Ajoute la loss sur les angles χ (`--chi-weight`) au meilleur modèle (`hybrid_chain_pep`), l'évalue avec la référence et lance toutes les analyses (géométrie, erreurs, rotamères, tableau récapitulatif) |
 | `analyze_flow_geometry.py` | Nature des erreurs (sens de chaîne, orientation du squelette, rotamère χ1–χ4, décalage) et chimie (liaisons, angles, chiralité, planéité des cycles, contacts), à partir des `*_predictions.npz` |
 | `make_chimerax_view.py` | Session ChimeraX d'une portion de protéine : vraie structure, résidus reconstruits par chaque modèle et carte de densité, à partir des prédictions sauvegardées |
 | `make_error_examples.py` | Sessions ChimeraX d'exemples typiques de chaque type d'erreur (sens de chaîne, orientation, rotamère, décalage), avec la densité et la comparaison à un second modèle |
@@ -303,6 +304,14 @@ python sample_rotamers.py --lmdb-path /data/eyerly/splits_preprocessed.lmdb \
     --model hybrid_chain_pep=runs/flow_hybrid_chain_pep_e100/best_model.pt \
     --ca-context-file /data/eyerly/splits_ca_context.npz --k 8
 ```
+
+**Loss sur les angles χ** (`--chi-weight`, réseau `cnn`). La loss géométrique ne contrôle que les
+distances 1-2 et 1-3 ; une distance 1-4 ne distingue pas g+ de g−. On ajoute
+`1 − cos(χ̂ − χ_vrai)` (`1 − cos 2Δ` pour ASP χ2, GLU χ3, PHE χ2, TYR χ2) sur les angles χ1–χ4 de
+l'estimation `x̂₁`, pondérée par t ; en mode autorégressif, les atomes des blocs précédents sont pris
+à leur position déjà placée. `loss_chi` est suivie à chaque epoch, même avec un poids 0. Suffixe du
+dossier par défaut : `_chi`. `bash run_flow_chi.sh` entraîne `hybrid_chain_pep_chi` (`WEIGHTS="1 3"`
+pour deux poids en parallèle), l'évalue avec `hybrid_chain_pep` et lance toutes les analyses.
 
 **Un exemple par type d'erreur** (`make_error_examples.py`). Le premier `--pred` classe les erreurs ;
 pour chaque type, `--n` résidus typiques (RMSD proche de la médiane du type, chaîne latérale lisible,

@@ -54,6 +54,14 @@ des residus voisins (liaison C-N 1-2 et distances 1-3), ponderee par t comme
 la loss geometrique. Calculee et suivie des que le fichier est donne, meme
 avec un poids 0. Suffixe du dossier par defaut : _<contexte>, _pep.
 
+Angles chi (--chi-weight) : loss 1 - cos(chi_estime - chi_vrai) sur les
+angles de torsion chi1-chi4 de la chaine laterale de x1_hat (1 - cos(2 delta)
+pour les chi pi-periodiques : ASP chi2, GLU chi3, PHE chi2, TYR chi2),
+ponderee par t comme la loss geometrique. Une distance 1-4 ne distingue pas
+g+ de g- : il faut l'angle signe. En mode autoregressif, les atomes des blocs
+precedents sont pris a leur position deja placee. Suivie a chaque epoch meme
+avec un poids 0. Suffixe du dossier par defaut : _chi.
+
 A chaque epoch : loss train/val (flow + geometrie) et, sur un sous-ensemble
 fixe du val, generation complete -> RMSD tous atomes / backbone / chaine
 laterale, fraction de residus a RMSD < 1 A, erreur sur les liaisons.
@@ -83,6 +91,7 @@ from flow_common import (
     pair_tensors, predicted_mask, residue_metrics, rotate_coords, sample_atoms, sample_atoms_ar,
     sample_noise, save_flow_reports, spherical_mask_t,
 )
+from analyze_flow_geometry import CHI, CHI_MASK, CHI_PI
 from flow_models import build_flow_model
 from train_utils import MetricsHistory
 
@@ -91,13 +100,64 @@ FLOW_CURVES = [
     ("loss_flow", "Loss flow matching"),
     ("loss_geom", "Loss geometrique (A)"),
     ("loss_pep", "Loss liaison peptidique (A)"),
+    ("loss_chi", "Loss angles chi (1 - cos)"),
     ("rmsd_mean", "RMSD moyen (A)"),
     ("rmsd_sidechain_mean", "RMSD chaine laterale (A)"),
     ("frac_rmsd_lt_1A", "Fraction RMSD < 1 A"),
     ("bond_err_mean", "Erreur longueurs de liaison (A)"),
 ]
-LOWER_BETTER = ("loss", "loss_flow", "loss_geom", "loss_pep", "rmsd_mean", "rmsd_sidechain_mean",
+LOWER_BETTER = ("loss", "loss_flow", "loss_geom", "loss_pep", "loss_chi", "rmsd_mean", "rmsd_sidechain_mean",
                 "bond_err_mean")
+
+
+_CHI_TABLES = {}
+
+
+def _dihedral_cs(p0, p1, p2, p3, eps=1e-6):
+    """(cos, sin) du diedre p0-p1-p2-p3 (meme convention que
+    analyze_flow_geometry.dihedral), sans atan2 : gradient stable meme pour
+    des atomes presque alignes (estimations a t ~ 0)."""
+    b0, b1, b2 = p0 - p1, p2 - p1, p3 - p2
+    b1n = b1 / (b1.norm(dim=-1, keepdim=True) + eps)
+    v = b0 - (b0 * b1n).sum(-1, keepdim=True) * b1n
+    w = b2 - (b2 * b1n).sum(-1, keepdim=True) * b1n
+    x = (v * w).sum(-1)
+    y = (torch.cross(b1n, v, dim=-1) * w).sum(-1)
+    r = torch.sqrt(x * x + y * y + eps)
+    return x / r, y / r
+
+
+def chi_loss(x_est, pos, restype, mask, t_atom, placed=None, rank=None):
+    """Loss sur les angles chi : moyenne de 1 - cos(k (chi_est - chi_vrai))
+    (k = 2 si pi-periodique) sur les chi presents, ponderee par le temps du
+    dernier atome de chaque chi (t_atom (B,14)).
+    x_est, pos, placed (B,14,3) en A ; rank (B,14) numero de bloc (mode
+    autoregressif) : les atomes d'un bloc anterieur au dernier atome du chi
+    sont pris dans `placed` (deja places), les autres dans x_est."""
+    dev = x_est.device
+    if dev not in _CHI_TABLES:
+        _CHI_TABLES[dev] = tuple(torch.as_tensor(a, device=dev) for a in (CHI, CHI_MASK, CHI_PI))
+    chi_idx, chi_mask, chi_pi = (a[restype] for a in _CHI_TABLES[dev])   # (B,4,4) (B,4) (B,4)
+    B = restype.shape[0]
+    flat = chi_idx.view(B, 16)
+
+    def gather(x):
+        return torch.gather(x, 1, flat[..., None].expand(-1, -1, 3)).view(B, 4, 4, 3)
+
+    p = gather(x_est)
+    if rank is not None and placed is not None:
+        rq = torch.gather(rank, 1, flat).view(B, 4, 4)
+        est = rq == rq.max(-1, keepdim=True).values
+        p = torch.where(est[..., None], p, gather(placed))
+    q = gather(pos)
+    cp, sp = _dihedral_cs(p[..., 0, :], p[..., 1, :], p[..., 2, :], p[..., 3, :])
+    with torch.no_grad():
+        ct, st = _dihedral_cs(q[..., 0, :], q[..., 1, :], q[..., 2, :], q[..., 3, :])
+    cd, sd = cp * ct + sp * st, sp * ct - cp * st                  # cos, sin de (est - vrai)
+    cos_k = torch.where(chi_pi, cd * cd - sd * sd, cd)
+    valid = chi_mask & torch.gather(mask, 1, flat).view(B, 4, 4).all(-1)
+    w = torch.gather(t_atom, 1, chi_idx[..., 3]) * valid.float()  # temps du dernier atome
+    return ((1 - cos_k) * w).sum() / valid.float().sum().clamp(min=1)
 
 
 _CONTEXTS = {}
@@ -116,7 +176,7 @@ def get_context(args):
 
 
 def flow_losses(model, batch, args, device, augment=False, generator=None, mask_t=None):
-    """Retourne (loss flow, loss geometrique, loss liaison peptidique)."""
+    """Retourne (loss flow, loss geometrique, loss liaison peptidique, loss chi)."""
     cube, pos, mask, restype, idx = batch
     ctxdata = get_context(args)
     nb = ctxdata.batch(idx, device) if ctxdata is not None else None
@@ -155,9 +215,11 @@ def flow_losses(model, batch, args, device, augment=False, generator=None, mask_
     hub = F.huber_loss(err, torch.zeros_like(err), reduction="none", delta=0.5)
     vw = valid.float() * t[:, None]
     loss_geom = (hub * vw).sum() / valid.float().sum().clamp(min=1)
-    loss_pep = (peptide_loss(x1_hat, pos, nb, t[:, None].expand(-1, N_SLOTS))
+    t_atom = t[:, None].expand(-1, N_SLOTS)
+    loss_pep = (peptide_loss(x1_hat, pos, nb, t_atom)
                 if nb is not None else loss_geom.new_zeros(()))
-    return loss_flow, loss_geom, loss_pep
+    loss_chi = chi_loss(x1_hat, pos, restype, mask, t_atom)
+    return loss_flow, loss_geom, loss_pep, loss_chi
 
 
 def _ar_losses(model, cube, pos, y1, mask, restype, pm, args, generator, nb=None):
@@ -200,7 +262,8 @@ def _ar_losses(model, cube, pos, y1, mask, restype, pm, args, generator, nb=None
     vw = valid.float() * torch.gather(t, 1, late)
     loss_geom = (hub * vw).sum() / valid.float().sum().clamp(min=1)
     loss_pep = peptide_loss(x1_hat, pos, nb, t) if nb is not None else loss_geom.new_zeros(())
-    return loss_flow, loss_geom, loss_pep
+    loss_chi = chi_loss(x1_hat, pos, restype, mask, t, placed=ctx_A, rank=rk)
+    return loss_flow, loss_geom, loss_pep, loss_chi
 
 
 def ar_groups(args):
@@ -223,12 +286,13 @@ def run_epoch(model, loader, args, device, optimizer=None, augment=False, seed=N
     if seed is not None:
         gen = torch.Generator(device=device)
         gen.manual_seed(seed)
-    tot = {"loss": 0.0, "loss_flow": 0.0, "loss_geom": 0.0, "loss_pep": 0.0}
+    tot = {"loss": 0.0, "loss_flow": 0.0, "loss_geom": 0.0, "loss_pep": 0.0, "loss_chi": 0.0}
     n = 0
     for batch in tqdm(loader, leave=False):
         with torch.set_grad_enabled(train):
-            lf, lg, lp = flow_losses(model, batch, args, device, augment, gen, mask_t)
-            loss = lf + args.geom_weight * lg + getattr(args, "pep_weight", 0.0) * lp
+            lf, lg, lp, lc = flow_losses(model, batch, args, device, augment, gen, mask_t)
+            loss = (lf + args.geom_weight * lg + getattr(args, "pep_weight", 0.0) * lp
+                    + getattr(args, "chi_weight", 0.0) * lc)
             if train:
                 optimizer.zero_grad()
                 loss.backward()
@@ -240,6 +304,7 @@ def run_epoch(model, loader, args, device, optimizer=None, augment=False, seed=N
         tot["loss_flow"] += lf.item() * bs
         tot["loss_geom"] += lg.item() * bs
         tot["loss_pep"] += lp.item() * bs
+        tot["loss_chi"] += lc.item() * bs
     return {k: v / max(n, 1) for k, v in tot.items()}
 
 
@@ -295,6 +360,8 @@ def main():
                    help="npz de extract_ca_context.py (requis par --ca-context et --pep-weight)")
     p.add_argument("--pep-weight", type=float, default=0.0,
                    help="poids de la loss sur la liaison peptidique avec les residus voisins")
+    p.add_argument("--chi-weight", type=float, default=0.0,
+                   help="poids de la loss sur les angles chi de la chaine laterale")
     p.add_argument("--geom-weight", type=float, default=1.0,
                    help="poids de la loss geometrique (0 = desactivee)")
     p.add_argument("--sample-steps", type=int, default=20,
@@ -349,6 +416,7 @@ def main():
               "_ar" if args.ar_groups == "atom" else f"_ar_{args.ar_groups}")
     suffix += ("" if args.ca_context == "none" else f"_{args.ca_context}")
     suffix += "_pep" if args.pep_weight > 0 else ""
+    suffix += "_chi" if args.chi_weight > 0 else ""
     args.out_dir = args.out_dir or f"runs/flow_{args.model}{suffix}"
     os.makedirs(args.out_dir, exist_ok=True)
     ckpt_path = os.path.join(args.out_dir, "best_model.pt")
@@ -397,7 +465,8 @@ def main():
         scheduler.step()
         history.log(epoch, tr, va, lr=lr)
         msg = (f"Epoch {epoch:03d} | train loss={tr['loss']:.4f} (flow {tr['loss_flow']:.4f}, "
-               f"geom {tr['loss_geom']:.4f}, pep {tr['loss_pep']:.4f}) | "
+               f"geom {tr['loss_geom']:.4f}, pep {tr['loss_pep']:.4f}, "
+               f"chi {tr['loss_chi']:.4f}) | "
                f"val loss={va['loss']:.4f}")
         if "rmsd_mean" in va:
             msg += (f" RMSD={va['rmsd_mean']:.3f} A (sc {va['rmsd_sidechain_mean']:.3f}) "
