@@ -7,7 +7,8 @@ consensus (medoide des K) et oracle (le meilleur des K selon la verite, borne
 haute). Labels en anglais.
 
 Ecrit dans --out-dir : rotamer_accuracy_per_type.png (un panneau par
-ensemble, acides amines tries selon random sur le dernier ensemble) et
+ensemble, acides amines tries selon random sur le dernier ensemble ; suffixe
+_<ensembles> si --sets n'est pas la liste complete) et
 rotamer_accuracy_per_type.csv.
 
 Usage :
@@ -89,7 +90,8 @@ def main():
                 n, v = table[(s, r)]
                 w.writerow([s, STANDARD[r], n] + [f"{v[k]:.4f}" for k, _, _ in SERIES])
 
-    fig, axes = _new_fig(len(data), 1, figsize=(12, 2.9 * len(data) + 0.6), sharex=True)
+    fig, axes = _new_fig(len(data), 1, figsize=(12, 2.9 * len(data) + (1.2 if len(data) == 1 else 0.6)),
+                         sharex=True)
     axes = np.atleast_1d(axes)
     x = np.arange(len(types))
     w = 0.27
@@ -109,16 +111,27 @@ def main():
     axes[-1].set_xticklabels([STANDARD[r] for r in types], fontsize=9, color=TEXT_PRIMARY)
     h, l = axes[0].get_legend_handles_labels()
     K = list(data.values())[0][2]
-    fig.legend(h, [t.replace("K", str(K)) if "K" in t else t for t in l], loc="upper center",
-               ncol=3, frameon=False, fontsize=9, bbox_to_anchor=(0.5, 1.0),
-               labelcolor=TEXT_PRIMARY)
-    fig.suptitle(f"Rotamer accuracy per amino acid (all χ within ±{args.chi_tol:g}°)",
-                 x=0.01, y=1.035, ha="left", fontsize=12, color=TEXT_PRIMARY)
+    l = [t.replace("K", str(K)) if "K" in t else t for t in l]
+    title = f"Rotamer accuracy per amino acid (all \u03c7 within \u00b1{args.chi_tol:g}\u00b0)"
+    if len(data) == 1:
+        # un seul panneau : titre et legende dans l'axe (pas d'espace vide au-dessus)
+        ax = axes[0]
+        ax.set_title(f"{title}  \u00b7  {ax.get_title(loc='left')}", loc="left", fontsize=12,
+                     color=TEXT_PRIMARY, pad=26)
+        ax.legend(h, l, loc="lower left", bbox_to_anchor=(0, 1.0), ncol=3, frameon=False,
+                  fontsize=9, labelcolor=TEXT_PRIMARY, borderaxespad=0.2)
+        top = 1.0
+    else:
+        top = 0.97
+        fig.legend(h, l, loc="upper center", ncol=3, frameon=False, fontsize=9,
+                   bbox_to_anchor=(0.5, 1.0), labelcolor=TEXT_PRIMARY)
+        fig.suptitle(title, x=0.01, y=1.035, ha="left", fontsize=12, color=TEXT_PRIMARY)
     fig.text(0.01, -0.01, f"hybrid_chain_pep, K = {K} samples per residue. Amino acids sorted by "
              f"random accuracy on {SET_TITLE.get(last, last)}. GLY and ALA have no χ angle.",
              fontsize=8, color=TEXT_SECONDARY, ha="left", va="top")
-    fig.tight_layout(rect=(0, 0, 1, 0.97))
-    out = os.path.join(args.out_dir, "rotamer_accuracy_per_type.png")
+    fig.tight_layout(rect=(0, 0, 1, top))
+    tag = "" if list(data) == list(SET_TITLE) else "_" + "_".join(data)
+    out = os.path.join(args.out_dir, f"rotamer_accuracy_per_type{tag}.png")
     fig.savefig(out, dpi=200, bbox_inches="tight", facecolor=SURFACE)
     plt.close(fig)
     print(f"Ecrit : {out}, rotamer_accuracy_per_type.csv")
