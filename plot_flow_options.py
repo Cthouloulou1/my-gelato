@@ -10,6 +10,8 @@ Writes in --out-dir:
     details_<set>.png         backbone RMSD, residues < 1 A, Gly N/C swapped,
                               D-amino acids, chi1 accuracy, C-N bond error
     failure_causes_<set>.png  failed residues (RMSD > 1 A) stacked by cause
+    failure_causes_<model>_by_resolution.png
+                              same, one bar per resolution, for --causes-model
     single/<metric>.png       each panel on its own (for slides)
 
 Usage :
@@ -19,6 +21,7 @@ Usage :
 
 import argparse
 import csv
+import glob
 import os
 
 import numpy as np
@@ -118,29 +121,24 @@ CAUSES = [("part_sens", "Chain direction (N/C swapped)", CATEGORICAL[0]),
 TRACK = "#ecebe7"
 
 
-def failure_causes(rows, detail_set, path):
-    """Une barre par modele : la piste entiere vaut 100 % des residus, les
-    segments = residus rates (RMSD > 1 A) par cause, total a droite."""
-    cols = [f"{c}@{detail_set}" for c, _, _ in CAUSES]
-    rows = [r for r in rows if all(np.isfinite(r.get(c, np.nan)) for c in cols)]
-    if not rows:
-        return False
-    y, pos, prev = [], 0.0, None
-    for r in rows:
-        f = family(r["modele"])[0]
-        if prev is not None and f != prev:
+def _stacked_causes(entries, title, path):
+    """entries : [(etiquette, [4 fractions dans l'ordre de CAUSES], espace avant)].
+    Une piste par entree = 100 % des residus ; segments = residus rates par
+    cause ; total a droite."""
+    y, pos = [], 0.0
+    for k, (_, _, gap) in enumerate(entries):
+        if k and gap:
             pos += 0.45
         y.append(pos)
         pos += 1.0
-        prev = f
-    fig, ax = _new_fig(1, 1, figsize=(9.5, 0.42 * len(rows) + 1.9))
+    fig, ax = _new_fig(1, 1, figsize=(9.5, 0.42 * len(entries) + 1.9))
     ax.set_facecolor(SURFACE)
     h = 0.62
-    for yi, r in zip(y, rows):
+    for yi, (_, parts, _) in zip(y, entries):
         ax.barh(yi, 100, height=h, color=TRACK, linewidth=0)
         left = 0.0
-        for c, _, color in CAUSES:
-            v = 100 * r[f"{c}@{detail_set}"]
+        for v, (_, _, color) in zip(parts, CAUSES):
+            v = 100 * v
             if v > 0:
                 ax.barh(yi, v, left=left, height=h, color=color, edgecolor=SURFACE,
                         linewidth=1.5)
@@ -150,8 +148,7 @@ def failure_causes(rows, detail_set, path):
     ax.set_xlim(0, 109)
     ax.set_ylim(y[-1] + 0.6, y[0] - 0.6)
     ax.set_yticks(y)
-    ax.set_yticklabels([NAMES.get(r["modele"], r["modele"]) for r in rows], fontsize=10,
-                       color=TEXT_PRIMARY)
+    ax.set_yticklabels([e[0] for e in entries], fontsize=10, color=TEXT_PRIMARY)
     ax.set_xticks([])
     for side in ax.spines.values():
         side.set_visible(False)
@@ -160,15 +157,53 @@ def failure_causes(rows, detail_set, path):
     ax.legend(handles, [l for _, l, _ in CAUSES], loc="lower left", bbox_to_anchor=(0, 1.0),
               ncol=4, frameon=False, fontsize=9, handlelength=1, handleheight=1,
               labelcolor=TEXT_SECONDARY, borderaxespad=0.3)
-    ax.set_title(f"Failed residues (RMSD > 1 \u00c5) by cause \u00b7 "
-                 f"{SET_TITLE.get(detail_set, detail_set)}", loc="left", fontsize=12,
-                 color=TEXT_PRIMARY, pad=30)
+    ax.set_title(title, loc="left", fontsize=12, color=TEXT_PRIMARY, pad=30)
     fig.text(0.01, 0.01, "Full bar = 100 % of residues. Each failure gets the first cause that "
              "applies: chain direction > orientation > rotamer > displacement.",
              fontsize=8, color=TEXT_SECONDARY, ha="left", va="bottom")
     fig.tight_layout(rect=(0, 0.04, 1, 1))
     fig.savefig(path, dpi=200, bbox_inches="tight", facecolor=SURFACE)
     plt.close(fig)
+
+
+def failure_causes(rows, detail_set, path):
+    """Une barre par modele, sur un ensemble (colonnes part_* du CSV)."""
+    cols = [f"{c}@{detail_set}" for c, _, _ in CAUSES]
+    rows = [r for r in rows if all(np.isfinite(r.get(c, np.nan)) for c in cols)]
+    if not rows:
+        return False
+    entries, prev = [], None
+    for r in rows:
+        f = family(r["modele"])[0]
+        entries.append((NAMES.get(r["modele"], r["modele"]), [r[c] for c in cols],
+                        prev is not None and f != prev))
+        prev = f
+    _stacked_causes(entries, f"Failed residues (RMSD > 1 \u00c5) by cause \u00b7 "
+                             f"{SET_TITLE.get(detail_set, detail_set)}", path)
+    return True
+
+
+def failure_causes_by_resolution(model, geometry_dirs, path):
+    """Une barre par ensemble (val, tests par resolution) pour un modele, lue
+    dans les error_origin.csv de analyze_flow_geometry.py."""
+    src = {"part_sens": "part_sens de chaine", "part_orientation": "part_orientation",
+           "part_rotamere": "part_rotamere", "part_decalage": "part_decalage"}
+    entries = []
+    for s in SET_TITLE:
+        for d in geometry_dirs:
+            p = os.path.join(d, s, "error_origin.csv")
+            if not os.path.exists(p):
+                continue
+            with open(p, newline="") as f:
+                hit = [r for r in csv.DictReader(f) if r["modele"] == model]
+            if hit:
+                entries.append((SET_TITLE[s], [float(hit[0][src[c]]) for c, _, _ in CAUSES],
+                                s == "test_1_2A"))
+                break
+    if not entries:
+        return False
+    _stacked_causes(entries, f"Failed residues (RMSD > 1 \u00c5) by cause \u00b7 "
+                             f"{NAMES.get(model, model)}, by map resolution", path)
     return True
 
 
@@ -178,6 +213,10 @@ def main():
     ap.add_argument("--csv", default="runs/flow_options_summary.csv")
     ap.add_argument("--out-dir", default="runs/flow_options_plots")
     ap.add_argument("--models", nargs="*", default=None, help="only these models (CSV names)")
+    ap.add_argument("--causes-model", nargs="*", default=["hybrid_chain_pep"],
+                    help="models for the failure-causes plot by resolution")
+    ap.add_argument("--geometry", nargs="*", default=None,
+                    help="analyze_flow_geometry.py dirs (default: runs/geometry*_e100)")
     args = ap.parse_args()
 
     rows = load(args.csv)
@@ -236,6 +275,14 @@ def main():
         fig.savefig(os.path.join(args.out_dir, "single", fname + ".png"), dpi=200,
                     bbox_inches="tight", facecolor=SURFACE)
         plt.close(fig)
+    geo_dirs = args.geometry if args.geometry is not None else sorted(
+        d for d in glob.glob("runs/geometry*_e100") if os.path.isdir(d))
+    for m in args.causes_model:
+        if failure_causes_by_resolution(m, geo_dirs, os.path.join(
+                args.out_dir, f"failure_causes_{m}_by_resolution.png")):
+            print(f"Written: {args.out_dir}/failure_causes_{m}_by_resolution.png")
+        else:
+            print(f"{m}: no error_origin.csv found in {geo_dirs}")
     fc = failure_causes(rows, detail_set,
                         os.path.join(args.out_dir, f"failure_causes_{detail_set}.png"))
     print(f"Written in {args.out_dir}: rmsd_by_resolution.png, details_{detail_set}.png, "
