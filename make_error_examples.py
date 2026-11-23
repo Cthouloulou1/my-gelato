@@ -111,9 +111,9 @@ def session(path, kind_text, models, map_path, chain, seq, flank, worst, sd_leve
             L += [f"color #1{res} {color} target a", f"size #1{res} stickRadius 0.25"]
         else:
             L.append(f"color #{i} {color} target a")
-    L.append(f"color byhetero #1{res}")
+    L.append(f"color #1{res} byhetero")
     for i in range(2, n + 1):
-        L.append(f"color byhetero #{i}")
+        L.append(f"color #{i} byhetero")
     if map_path:
         m = n + 1
         L += [f'open "{os.path.abspath(map_path)}"',

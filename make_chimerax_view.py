@@ -133,7 +133,7 @@ def chimerax_script(out_dir, models, map_path, chain, first, last, sd_level):
           f"size {allm} stickRadius 0.15"]
     for i, (name, _, color) in enumerate(models, start=1):
         L += [f"# #{i} = {name}", f"color #{i} {color} target a"]
-    L += [f"color byhetero {allm}",
+    L += [f"color {allm} byhetero",
           "# verite plus epaisse",
           "size #1 stickRadius 0.25"]
     if map_path:
