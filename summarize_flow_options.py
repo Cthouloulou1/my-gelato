@@ -143,7 +143,10 @@ def main():
     # 4. geometrie (echecs, chi1, chimie)
     for d in geometries:
         for name, cols in (("error_origin.csv", {"echecs": "echecs",
-                                                 "part_orientation": "part_orientation"}),
+                                                 "part_sens de chaine": "part_sens",
+                                                 "part_orientation": "part_orientation",
+                                                 "part_rotamere": "part_rotamere",
+                                                 "part_decalage": "part_decalage"}),
                            ("rotamers.csv", {"chi1": "chi1"}),
                            ("chemistry.csv", {"chiral_ca_bad": "chiral_ca_bad",
                                               "clash": "clash"})):
@@ -163,6 +166,9 @@ def main():
 
     cols = ([(f"rmsd_mean@{s}", f"RMSD {SET_LABEL[s]}", True, "{:.3f}") for s in SETS]
             + DETAIL)
+    # dans le CSV seulement (pour plot_flow_options.py) : causes d'echec
+    csv_cols = cols + [(k, k, True, "pct") for k in ("part_sens", "part_rotamere",
+                                                       "part_decalage")]
 
     # CSV brut
     os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
@@ -170,12 +176,12 @@ def main():
         w = csv.writer(f)
         w.writerow(["modele", "groupe", "n_seeds"] + [
             (k if "@" in k else f"{k}@{args.set}") + suffix
-            for k, *_ in cols for suffix in ("", "_std")])
+            for k, *_ in csv_cols for suffix in ("", "_std")])
         for m in models:
             row = T[m]
             n = row.get(f"rmsd_mean@{SETS[0]}", (None, None, 1))[2] or 1
             out = [m, group_of(m), n]
-            for k, *_ in cols:
+            for k, *_ in csv_cols:
                 v, s, _ = row.get(k, (None, None, None))
                 out += ["" if v is None else f"{v:.6g}", "" if s is None else f"{s:.6g}"]
             w.writerow(out)

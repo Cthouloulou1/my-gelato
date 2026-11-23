@@ -9,6 +9,7 @@ Writes in --out-dir:
     rmsd_by_resolution.png    mean RMSD on val, test 1-2 / 2-3 / 3-4 A
     details_<set>.png         backbone RMSD, residues < 1 A, Gly N/C swapped,
                               D-amino acids, chi1 accuracy, C-N bond error
+    failure_causes_<set>.png  failed residues (RMSD > 1 A) stacked by cause
     single/<metric>.png       each panel on its own (for slides)
 
 Usage :
@@ -110,6 +111,67 @@ def legend(fig, rows, y=1.0):
                frameon=False, fontsize=9, bbox_to_anchor=(0.5, y), labelcolor=TEXT_PRIMARY)
 
 
+CAUSES = [("part_sens", "Chain direction (N/C swapped)", CATEGORICAL[0]),
+          ("part_orientation", "Backbone orientation (> 30\u00b0)", CATEGORICAL[1]),
+          ("part_rotamere", "Rotamer (a \u03c7 off by > 40\u00b0)", CATEGORICAL[2]),
+          ("part_decalage", "Displaced atoms", CATEGORICAL[3])]
+TRACK = "#ecebe7"
+
+
+def failure_causes(rows, detail_set, path):
+    """Une barre par modele : la piste entiere vaut 100 % des residus, les
+    segments = residus rates (RMSD > 1 A) par cause, total a droite."""
+    cols = [f"{c}@{detail_set}" for c, _, _ in CAUSES]
+    rows = [r for r in rows if all(np.isfinite(r.get(c, np.nan)) for c in cols)]
+    if not rows:
+        return False
+    y, pos, prev = [], 0.0, None
+    for r in rows:
+        f = family(r["modele"])[0]
+        if prev is not None and f != prev:
+            pos += 0.45
+        y.append(pos)
+        pos += 1.0
+        prev = f
+    fig, ax = _new_fig(1, 1, figsize=(9.5, 0.42 * len(rows) + 1.9))
+    ax.set_facecolor(SURFACE)
+    h = 0.62
+    for yi, r in zip(y, rows):
+        ax.barh(yi, 100, height=h, color=TRACK, linewidth=0)
+        left = 0.0
+        for c, _, color in CAUSES:
+            v = 100 * r[f"{c}@{detail_set}"]
+            if v > 0:
+                ax.barh(yi, v, left=left, height=h, color=color, edgecolor=SURFACE,
+                        linewidth=1.5)
+            left += v
+        ax.text(101.5, yi, f"{left:.1f} %", va="center", ha="left", fontsize=10,
+                fontweight="bold", color=TEXT_PRIMARY)
+    ax.set_xlim(0, 109)
+    ax.set_ylim(y[-1] + 0.6, y[0] - 0.6)
+    ax.set_yticks(y)
+    ax.set_yticklabels([NAMES.get(r["modele"], r["modele"]) for r in rows], fontsize=10,
+                       color=TEXT_PRIMARY)
+    ax.set_xticks([])
+    for side in ax.spines.values():
+        side.set_visible(False)
+    ax.tick_params(axis="y", length=0, pad=8)
+    handles = [plt.Rectangle((0, 0), 1, 1, color=c) for _, _, c in CAUSES]
+    ax.legend(handles, [l for _, l, _ in CAUSES], loc="lower left", bbox_to_anchor=(0, 1.0),
+              ncol=4, frameon=False, fontsize=9, handlelength=1, handleheight=1,
+              labelcolor=TEXT_SECONDARY, borderaxespad=0.3)
+    ax.set_title(f"Failed residues (RMSD > 1 \u00c5) by cause \u00b7 "
+                 f"{SET_TITLE.get(detail_set, detail_set)}", loc="left", fontsize=12,
+                 color=TEXT_PRIMARY, pad=30)
+    fig.text(0.01, 0.01, "Full bar = 100 % of residues. Each failure gets the first cause that "
+             "applies: chain direction > orientation > rotamer > displacement.",
+             fontsize=8, color=TEXT_SECONDARY, ha="left", va="bottom")
+    fig.tight_layout(rect=(0, 0.04, 1, 1))
+    fig.savefig(path, dpi=200, bbox_inches="tight", facecolor=SURFACE)
+    plt.close(fig)
+    return True
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -174,8 +236,11 @@ def main():
         fig.savefig(os.path.join(args.out_dir, "single", fname + ".png"), dpi=200,
                     bbox_inches="tight", facecolor=SURFACE)
         plt.close(fig)
+    fc = failure_causes(rows, detail_set,
+                        os.path.join(args.out_dir, f"failure_causes_{detail_set}.png"))
     print(f"Written in {args.out_dir}: rmsd_by_resolution.png, details_{detail_set}.png, "
-          f"single/ ({len(singles)} files)")
+          + (f"failure_causes_{detail_set}.png, " if fc else "")
+          + f"single/ ({len(singles)} files)")
 
 
 if __name__ == "__main__":

@@ -281,7 +281,7 @@ python summarize_flow_options.py                 # ou --set test_2_3A --out runs
 
 `plot_flow_options.py` en tire des barres horizontales (étiquettes en anglais, couleur par famille
 d'options, barres d'erreur = écart-type des seeds) dans `runs/flow_options_plots/` :
-`rmsd_by_resolution.png`, `details_<set>.png` et un fichier par panneau dans `single/`.
+`rmsd_by_resolution.png`, `details_<set>.png`, `failure_causes_<set>.png` (résidus ratés empilés par cause) et un fichier par panneau dans `single/`.
 
 **Un exemple par type d'erreur** (`make_error_examples.py`). Le premier `--pred` classe les erreurs ;
 pour chaque type, `--n` résidus typiques (RMSD proche de la médiane du type, chaîne latérale lisible,
