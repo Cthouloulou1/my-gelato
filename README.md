@@ -30,6 +30,8 @@ Deux modèles : un réseau **équivariant SO(3)** (e3nn, nuage de points) et un 
 | `make_error_examples.py` | Sessions ChimeraX d'exemples typiques de chaque type d'erreur (sens de chaîne, orientation, rotamère, décalage), avec la densité et la comparaison à un second modèle |
 | `summarize_flow_options.py` | Tableau récapitulatif de tous les modèles de flow (RMSD par résolution, squelette, échecs, orientation, GLY inversés, acides aminés D, χ1, clashes, liaison C–N), à partir des sorties des scripts d'évaluation et d'analyse |
 | `plot_flow_options.py` | Barres horizontales (en anglais) du tableau de `summarize_flow_options.py`, pour les présentations |
+| `analyze_rotamers.py` | Diagnostic des rotamères : référence bibliothèque de rotamères (train, par type et par φ/ψ), χ1 juste selon la densité de la vraie chaîne latérale, erreurs « rabattues » sur la bibliothèque |
+| `sample_rotamers.py` | Best-of-K : K échantillons par résidu, borne oracle, sélection par la densité ou par consensus |
 | `summarize_seeds.py` | Résumé multi-seeds des évaluations de flow : moyenne ± écart-type, écart à une référence, figures avec barres d'erreur |
 | `run_flow_e100.sh` / `run_flow_seeds.sh` | Enchaînent les entraînements des variantes de flow (100 epochs ; seeds supplémentaires), l'évaluation et l'analyse |
 | `replot_reports.py` | Régénère confusion / ROC / AUC par classe à partir des `*_predictions.npz`, sans relancer d'inférence |
@@ -282,6 +284,25 @@ python summarize_flow_options.py                 # ou --set test_2_3A --out runs
 `plot_flow_options.py` en tire des barres horizontales (étiquettes en anglais, couleur par famille
 d'options, barres d'erreur = écart-type des seeds) dans `runs/flow_options_plots/` :
 `rmsd_by_resolution.png`, `details_<set>.png`, `failure_causes_<set>.png` (résidus ratés empilés par cause) et un fichier par panneau dans `single/`.
+
+**Diagnostic des rotamères.** `analyze_rotamers.py` (CPU, sans inférence) compare les modèles à une
+bibliothèque de rotamères construite sur le train (rotamère le plus fréquent par type, puis par type
+et case (φ, ψ) du vrai squelette), mesure le χ1 juste selon la densité aux vrais atomes de la chaîne
+latérale (quintiles du score z) et, pour les χ1 faux, la part « comme la bibliothèque » et la part où
+la carte est plus dense sur la chaîne latérale prédite que sur la vraie. `sample_rotamers.py` (GPU)
+génère K échantillons par résidu et compare l'échantillon 0, l'oracle (le meilleur des K), le choix
+par la densité et le consensus ; les choix « densité » et « consensus » sont écrits au format de
+`evaluate_flow.py`.
+
+```bash
+python analyze_rotamers.py --atom14 /data/eyerly/splits_atom14.npz \
+    --splits /data/eyerly/pdb_cryoem_splits/splits.json \
+    --ca-context /data/eyerly/splits_ca_context.npz --lmdb-path /data/eyerly/splits_preprocessed.lmdb
+python sample_rotamers.py --lmdb-path /data/eyerly/splits_preprocessed.lmdb \
+    --atom14 /data/eyerly/splits_atom14.npz --splits /data/eyerly/pdb_cryoem_splits/splits.json \
+    --model hybrid_chain_pep=runs/flow_hybrid_chain_pep_e100/best_model.pt \
+    --ca-context-file /data/eyerly/splits_ca_context.npz --k 8
+```
 
 **Un exemple par type d'erreur** (`make_error_examples.py`). Le premier `--pred` classe les erreurs ;
 pour chaque type, `--n` résidus typiques (RMSD proche de la médiane du type, chaîne latérale lisible,
