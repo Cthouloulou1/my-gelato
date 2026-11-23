@@ -10,8 +10,9 @@ Pour une entree (PDB) d'un ensemble, ecrit dans --out-dir/<ensemble>_<PDB>_<chai
     <modele>.cif         memes residus, positions predites ; B-factor = RMSD du
                          residu (A), pour colorer par erreur
     residus.csv          RMSD de chaque residu de la portion, par modele
-    view.cxc             session ChimeraX : structures en batonnets, carte en
-                         maillage autour de la portion, etiquettes, camera
+    view.cxc             session ChimeraX epuree : structures en batonnets, une
+                         couleur par modele ; --details ajoute couleurs N/O,
+                         carte en maillage et etiquettes
 Ouvrir avec :  chimerax view.cxc   (ou, dans ChimeraX : open /chemin/view.cxc)
 
 Choix de la portion (residus consecutifs d'une meme chaine) :
@@ -115,8 +116,10 @@ def write_cif(path, name, residues):
 # Session ChimeraX
 # ---------------------------------------------------------------------------
 
-def chimerax_script(out_dir, models, map_path, chain, first, last, sd_level):
-    """models : liste de (nom, chemin .cif, couleur) ; le premier est le vrai."""
+def chimerax_script(out_dir, models, map_path, chain, first, last, sd_level, details=False):
+    """models : liste de (nom, chemin .cif, couleur) ; le premier est le vrai.
+    Par defaut, vue epuree (batonnets colores par modele) ; details : + couleurs
+    N/O, carte et etiquettes (sinon en commentaire dans le fichier)."""
     n = len(models)
     allm = f"#1-{n}"
     sel = f"/{chain}:{first}-{last}"
@@ -133,19 +136,23 @@ def chimerax_script(out_dir, models, map_path, chain, first, last, sd_level):
           f"size {allm} stickRadius 0.15"]
     for i, (name, _, color) in enumerate(models, start=1):
         L += [f"# #{i} = {name}", f"color #{i} {color} target a"]
-    L += [f"color {allm} byhetero",
-          "# verite plus epaisse",
-          "size #1 stickRadius 0.25"]
+    L += ["# verite plus epaisse", "size #1 stickRadius 0.25"]
+    extra = [f"color {allm} byhetero"]
     if map_path:
         m = n + 1
-        L += [f'open "{os.path.abspath(map_path)}"',
-              f"volume #{m} style mesh sdLevel {sd_level} color {MAP_COLOR}",
-              f"volume zone #{m} nearAtoms #1{sel} range 2.5"]
-    L += [f"label #1{sel} residues height 0.6 color {TRUE_COLOR}",
+        extra += [f'open "{os.path.abspath(map_path)}"',
+                  f"volume #{m} style mesh sdLevel {sd_level} color {MAP_COLOR}",
+                  f"volume zone #{m} nearAtoms #1{sel} range 2.5"]
+    extra.append(f"label #1{sel} residues height 0.6 color {TRUE_COLOR}")
+    if details:
+        L += extra
+    L += [
           f"view #1{sel}",
           "",
           "# --- utile ---",
           "# afficher / masquer un modele : show #3 models  /  hide #3 models",
+          *([] if details else ["# vue detaillee (couleurs N/O, carte, etiquettes) : "
+                                "copier ces lignes dans ChimeraX"] + [f"#   {c}" for c in extra]),
           f"# colorer un modele par l'erreur du residu (B-factor = RMSD, A) :",
           f"#   color bfactor #2{sel} palette 0,#2a78d6:1,#fcfcfb:2,#e34948",
           "# seuil de la carte : volume #N sdLevel 2   (N = numero de la carte)",
@@ -177,6 +184,8 @@ def main():
     ap.add_argument("--data-dir", default=None,
                     help="dossier <PDB>/emd_*.map (defaut : celui de splits.json)")
     ap.add_argument("--sd-level", type=float, default=1.5)
+    ap.add_argument("--details", action="store_true",
+                    help="vue detaillee : couleurs N/O, carte, etiquettes")
     ap.add_argument("--list", action="store_true", help="lister les entrees et sortir")
     ap.add_argument("--out-dir", default="runs/chimerax")
     args = ap.parse_args()
@@ -282,7 +291,8 @@ def main():
     if not maps:
         print(f"Attention : pas de carte {data_dir}/{pid}/emd_*.map (--data-dir) ; "
               f"session sans densite")
-    chimerax_script(out, models, maps[0] if maps else None, chain, first, last, args.sd_level)
+    chimerax_script(out, models, maps[0] if maps else None, chain, first, last, args.sd_level,
+                    args.details)
 
     with open(os.path.join(out, "residus.csv"), "w", newline="") as f:
         w = csv.writer(f)

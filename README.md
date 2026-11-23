@@ -255,7 +255,8 @@ python analyze_flow_geometry.py --pred joint=runs/evaluation_flow_e100/joint/val
 Visualisation dans ChimeraX, sans relancer d'inférence : pour une entrée d'un ensemble, une portion
 de résidus consécutifs (`--window 12`) avec la vraie structure (gris, plus épaisse), les résidus
 reconstruits par chaque modèle (une couleur par modèle), la carte EMDB en maillage autour de la
-portion et les étiquettes. Le B-factor des modèles prédits contient le RMSD du résidu, pour les
+portion et les étiquettes (ces trois derniers avec `--details`, sinon en commentaire dans
+`view.cxc`). Le B-factor des modèles prédits contient le RMSD du résidu, pour les
 colorer par erreur. Portion choisie par `--pick median` (représentative, défaut), `best`, `worst`,
 `aromatic` (la plus riche en cycles), ou imposée par `--residues A:50-61` ; `--list` affiche les
 entrées avec leur RMSD par modèle.
@@ -270,9 +271,10 @@ chimerax runs/chimerax/test_1_2A_<PDB>_<chaine><debut>-<fin>/view.cxc
 **Un exemple par type d'erreur** (`make_error_examples.py`). Le premier `--pred` classe les erreurs ;
 pour chaque type, `--n` résidus typiques (RMSD proche de la médiane du type, chaîne latérale lisible,
 entrées différentes ; orientation tournée de 45 à 120°, rotamère avec un χ faux de plus de 90° sur un
-bon squelette). Chaque dossier contient la vraie structure du résidu et de ses voisins (±`--flank`),
-le résidu prédit par chaque modèle, la carte autour du résidu, les atomes N/C/CB étiquetés, la
-distance de l'atome le plus faux et une légende ; `exemples.csv` résume les mesures.
+bon squelette). Chaque dossier contient la vraie structure du résidu (gris épais) et de ses voisins
+(±`--flank`, gris fin) et le résidu prédit par chaque modèle (bleu, orange…). `--details` ajoute les
+couleurs N/O, la carte, les étiquettes N/C/CB, la distance de l'atome le plus faux et une légende
+(sinon en commentaire dans `view.cxc`) ; `exemples.csv` résume les mesures.
 
 ```bash
 python make_error_examples.py --atom14 /data/eyerly/splits_atom14.npz \

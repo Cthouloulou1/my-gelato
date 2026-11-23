@@ -20,8 +20,9 @@ Criteres de choix, en plus du type :
 Ecrit dans --out-dir/<ensemble>/<n°>_<type>_<PDB>_<chaine><numero><residu>/ :
     vrai.cif       vraie structure, residu et ses voisins (+/- --flank)
     <modele>.cif   residu predit par chaque modele (B-factor = RMSD, A)
-    view.cxc       session : densite autour du residu, atomes N/C/CB etiquetes,
-                   distance de l'atome le plus faux, legende de l'erreur
+    view.cxc       session epuree : batonnets colores par modele ; --details ajoute
+                   couleurs N/O, densite, etiquettes N/C/CB, distance de l'atome
+                   le plus faux et legende (sinon en commentaire dans le fichier)
 et --out-dir/<ensemble>/exemples.csv (mesures de chaque exemple).
 
 Usage (contexte : hybride classe, hybrid_chain_pep affiche en plus) :
@@ -50,6 +51,7 @@ KINDS = ["sens de chaine", "orientation", "rotamere", "decalage"]
 SLUG = {"sens de chaine": "sens_chaine", "orientation": "orientation",
         "rotamere": "rotamere", "decalage": "decalage"}
 NEIGHBOUR_COLOR = "#c9ccd1"
+COLOR_NAMES = ["bleu", "orange", "vert", "jaune", "rose", "vert fonce", "violet", "rouge"]
 
 
 def describe(kind, o, r, rt):
@@ -92,11 +94,18 @@ def pick(kind, o, rt, n_atoms, has_nb, entry, n):
     return out
 
 
-def session(path, kind_text, models, map_path, chain, seq, flank, worst, sd_level):
-    """models : [(nom, chemin, couleur)], le premier est le vrai."""
+def session(path, kind_text, models, map_path, chain, seq, flank, worst, sd_level,
+            details=False):
+    """models : [(nom, chemin, couleur)], le premier est le vrai. Par defaut, vue
+    epuree (batonnets colores par modele) ; details : + couleurs N/O, carte,
+    etiquettes, distance de l'atome le plus faux et legende. Les commandes de la
+    vue detaillee restent en commentaire dans la vue epuree."""
     n = len(models)
     res = f"/{chain}:{seq}"
     L = ["# Session generee par make_error_examples.py",
+         f"# {kind_text}",
+         f"# gris epais : vrai residu ; gris fin : vrais voisins +/-{flank} ; "
+         + ", ".join(f"{COLOR_NAMES[k]} : {m}" for k, (m, _, _) in enumerate(models[1:])),
          "close session", "set bgColor white", "lighting soft",
          "graphics silhouettes true width 1.5"]
     for name, p, _ in models:
@@ -111,27 +120,25 @@ def session(path, kind_text, models, map_path, chain, seq, flank, worst, sd_leve
             L += [f"color #1{res} {color} target a", f"size #1{res} stickRadius 0.25"]
         else:
             L.append(f"color #{i} {color} target a")
-    L.append(f"color #1{res} byhetero")
-    for i in range(2, n + 1):
-        L.append(f"color #{i} byhetero")
+    extra = [f"color #1{res} byhetero"] + [f"color #{i} byhetero" for i in range(2, n + 1)]
     if map_path:
         m = n + 1
-        L += [f'open "{os.path.abspath(map_path)}"',
-              f"volume #{m} style mesh sdLevel {sd_level} color {MAP_COLOR}",
-              f"volume zone #{m} nearAtoms #1{res} range 3"]
-    L += [f"label #1{res} residues height 0.7 color black",
-          f"label #1-2{res}@N,C,CB atoms height 0.4",
-          "# atome le plus faux du premier modele : distance a sa vraie position",
-          f"distance #1{res}@{worst} #2{res}@{worst}",
-          f'2dlabels text "{kind_text}" xpos 0.02 ypos 0.94 size 18 color black',
-          f'2dlabels text "gris epais : vrai , couleur : {", ".join(m[0] for m in models[1:])}'
-          f' , fins : voisins +/-{flank}" xpos 0.02 ypos 0.89 size 13 color dimgray',
-          f"view #1{res}", "",
+        extra += [f'open "{os.path.abspath(map_path)}"',
+                  f"volume #{m} style mesh sdLevel {sd_level} color {MAP_COLOR}",
+                  f"volume zone #{m} nearAtoms #1{res} range 3"]
+    extra += [f"label #1-2{res}@N,C,CB atoms height 0.4",
+              f"distance #1{res}@{worst} #2{res}@{worst}",
+              f'2dlabels text "{kind_text}" xpos 0.02 ypos 0.94 size 18 color black']
+    if details:
+        L += extra
+    L += [f"view #1{res}", "",
           "# --- utile ---",
-          "# masquer un modele : hide #3 models   (et show #3 models)",
-          "# seuil de la carte : volume #N sdLevel 2",
-          f"# image : save {os.path.abspath(os.path.join(os.path.dirname(path), 'view.png'))} "
-          "width 1600 supersample 3"]
+          "# masquer un modele : hide #3 models   (et show #3 models)"]
+    if not details:
+        L += ["# vue detaillee (couleurs N/O, carte, etiquettes, distance de l'atome le plus "
+              "faux, legende) : copier ces lignes dans ChimeraX"] + [f"#   {c}" for c in extra]
+    L.append(f"# image : save {os.path.abspath(os.path.join(os.path.dirname(path), 'view.png'))} "
+             "width 1600 supersample 3")
     with open(path, "w") as f:
         f.write("\n".join(L) + "\n")
 
@@ -150,6 +157,8 @@ def main():
     ap.add_argument("--data-dir", default=None,
                     help="dossier <PDB>/emd_*.map (defaut : celui de splits.json)")
     ap.add_argument("--sd-level", type=float, default=1.5)
+    ap.add_argument("--details", action="store_true",
+                    help="vue detaillee : couleurs N/O, carte, etiquettes, distance, legende")
     ap.add_argument("--chi-tol", type=float, default=40.0)
     ap.add_argument("--frame-tol", type=float, default=30.0)
     ap.add_argument("--fail-rmsd", type=float, default=1.0)
@@ -241,7 +250,7 @@ def main():
             if not maps:
                 print(f"  attention : pas de carte {data_dir}/{pid}/emd_*.map")
             session(os.path.join(d, "view.cxc"), text, models, maps[0] if maps else None,
-                    chain, seq, args.flank, worst, args.sd_level)
+                    chain, seq, args.flank, worst, args.sd_level, args.details)
 
             dchi = o["dchi"][r]
             rows.append({"type": kind, "dossier": os.path.basename(d), "pdb": pid,
