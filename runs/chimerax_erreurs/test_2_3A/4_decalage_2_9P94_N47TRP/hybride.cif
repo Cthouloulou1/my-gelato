@@ -1,0 +1,38 @@
+data_hybride
+#
+loop_
+_atom_site.group_PDB
+_atom_site.id
+_atom_site.type_symbol
+_atom_site.label_atom_id
+_atom_site.label_comp_id
+_atom_site.label_asym_id
+_atom_site.label_entity_id
+_atom_site.label_seq_id
+_atom_site.Cartn_x
+_atom_site.Cartn_y
+_atom_site.Cartn_z
+_atom_site.occupancy
+_atom_site.B_iso_or_equiv
+_atom_site.auth_seq_id
+_atom_site.auth_comp_id
+_atom_site.auth_asym_id
+_atom_site.auth_atom_id
+_atom_site.pdbx_PDB_model_num
+_atom_site.label_alt_id
+_atom_site.pdbx_PDB_ins_code
+ATOM 1 N N TRP N 1 47 130.052 147.249 163.938 1.00 1.12 47 TRP N N 1 . ?
+ATOM 2 C CA TRP N 1 47 130.999 146.821 162.903 1.00 1.12 47 TRP N CA 1 . ?
+ATOM 3 C C TRP N 1 47 132.217 147.737 162.772 1.00 1.12 47 TRP N C 1 . ?
+ATOM 4 O O TRP N 1 47 132.226 148.695 162.042 1.00 1.12 47 TRP N O 1 . ?
+ATOM 5 C CB TRP N 1 47 130.276 146.583 161.593 1.00 1.12 47 TRP N CB 1 . ?
+ATOM 6 C CG TRP N 1 47 131.169 145.713 160.765 1.00 1.12 47 TRP N CG 1 . ?
+ATOM 7 C CD1 TRP N 1 47 131.020 144.335 160.546 1.00 1.12 47 TRP N CD1 1 . ?
+ATOM 8 C CD2 TRP N 1 47 132.188 146.139 159.935 1.00 1.12 47 TRP N CD2 1 . ?
+ATOM 9 N NE1 TRP N 1 47 131.926 143.932 159.676 1.00 1.12 47 TRP N NE1 1 . ?
+ATOM 10 C CE2 TRP N 1 47 132.756 144.953 159.391 1.00 1.12 47 TRP N CE2 1 . ?
+ATOM 11 C CE3 TRP N 1 47 132.619 147.456 159.487 1.00 1.12 47 TRP N CE3 1 . ?
+ATOM 12 C CZ2 TRP N 1 47 133.887 145.013 158.566 1.00 1.12 47 TRP N CZ2 1 . ?
+ATOM 13 C CZ3 TRP N 1 47 133.679 147.502 158.554 1.00 1.12 47 TRP N CZ3 1 . ?
+ATOM 14 C CH2 TRP N 1 47 134.314 146.346 158.201 1.00 1.12 47 TRP N CH2 1 . ?
+#

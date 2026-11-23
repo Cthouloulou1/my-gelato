@@ -1,0 +1,31 @@
+data_hybride
+#
+loop_
+_atom_site.group_PDB
+_atom_site.id
+_atom_site.type_symbol
+_atom_site.label_atom_id
+_atom_site.label_comp_id
+_atom_site.label_asym_id
+_atom_site.label_entity_id
+_atom_site.label_seq_id
+_atom_site.Cartn_x
+_atom_site.Cartn_y
+_atom_site.Cartn_z
+_atom_site.occupancy
+_atom_site.B_iso_or_equiv
+_atom_site.auth_seq_id
+_atom_site.auth_comp_id
+_atom_site.auth_asym_id
+_atom_site.auth_atom_id
+_atom_site.pdbx_PDB_model_num
+_atom_site.label_alt_id
+_atom_site.pdbx_PDB_ins_code
+ATOM 1 N N THR E 1 179 210.691 212.282 291.406 1.00 1.39 179 THR E N 1 . ?
+ATOM 2 C CA THR E 1 179 210.303 212.698 292.768 1.00 1.39 179 THR E CA 1 . ?
+ATOM 3 C C THR E 1 179 211.505 213.473 293.318 1.00 1.39 179 THR E C 1 . ?
+ATOM 4 O O THR E 1 179 212.665 213.026 293.093 1.00 1.39 179 THR E O 1 . ?
+ATOM 5 C CB THR E 1 179 210.047 211.437 293.611 1.00 1.39 179 THR E CB 1 . ?
+ATOM 6 O OG1 THR E 1 179 209.137 210.593 292.904 1.00 1.39 179 THR E OG1 1 . ?
+ATOM 7 C CG2 THR E 1 179 209.473 211.779 294.976 1.00 1.39 179 THR E CG2 1 . ?
+#

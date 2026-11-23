@@ -1,0 +1,17 @@
+ensemble,source,n,chi1,rotamere
+val,hybride,12930,0.9044,0.7326
+val,hybrid_chain_pep,12930,0.9202,0.7515
+val,bib. (type),12930,0.5811,0.4272
+val,bib. (type+phi/psi),12930,0.6599,0.5067
+test_1_2A,hybride,18243,0.8686,0.6908
+test_1_2A,hybrid_chain_pep,18243,0.8983,0.7148
+test_1_2A,bib. (type),18243,0.5872,0.4330
+test_1_2A,bib. (type+phi/psi),18243,0.6632,0.5104
+test_2_3A,hybride,16825,0.6470,0.4410
+test_2_3A,hybrid_chain_pep,16825,0.7558,0.5251
+test_2_3A,bib. (type),16825,0.5700,0.4030
+test_2_3A,bib. (type+phi/psi),16825,0.6203,0.4481
+test_3_4A,hybride,19509,0.5219,0.3294
+test_3_4A,hybrid_chain_pep,19509,0.6863,0.4444
+test_3_4A,bib. (type),19509,0.5340,0.3697
+test_3_4A,bib. (type+phi/psi),19509,0.5756,0.4103

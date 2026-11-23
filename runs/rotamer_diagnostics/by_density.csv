@@ -1,0 +1,81 @@
+ensemble,source,quintile,z_min,z_max,n,chi1
+val,hybride,Q1,-inf,0.349,834,0.5671
+val,hybride,Q2,0.349,0.721,1554,0.7696
+val,hybride,Q3,0.721,1.066,2219,0.8918
+val,hybride,Q4,1.066,1.485,3308,0.9480
+val,hybride,Q5,1.485,inf,5015,0.9791
+val,hybrid_chain_pep,Q1,-inf,0.349,834,0.5971
+val,hybrid_chain_pep,Q2,0.349,0.721,1554,0.7889
+val,hybrid_chain_pep,Q3,0.721,1.066,2219,0.9130
+val,hybrid_chain_pep,Q4,1.066,1.485,3308,0.9619
+val,hybrid_chain_pep,Q5,1.485,inf,5015,0.9902
+val,bib. (type),Q1,-inf,0.349,834,0.5000
+val,bib. (type),Q2,0.349,0.721,1554,0.4884
+val,bib. (type),Q3,0.721,1.066,2219,0.5822
+val,bib. (type),Q4,1.066,1.485,3308,0.6173
+val,bib. (type),Q5,1.485,inf,5015,0.5988
+val,bib. (type+phi/psi),Q1,-inf,0.349,834,0.5096
+val,bib. (type+phi/psi),Q2,0.349,0.721,1554,0.5592
+val,bib. (type+phi/psi),Q3,0.721,1.066,2219,0.6530
+val,bib. (type+phi/psi),Q4,1.066,1.485,3308,0.7028
+val,bib. (type+phi/psi),Q5,1.485,inf,5015,0.6907
+test_1_2A,hybride,Q1,-inf,0.349,1739,0.5566
+test_1_2A,hybride,Q2,0.349,0.721,2672,0.7762
+test_1_2A,hybride,Q3,0.721,1.066,3734,0.8575
+test_1_2A,hybride,Q4,1.066,1.485,4507,0.9288
+test_1_2A,hybride,Q5,1.485,inf,5591,0.9687
+test_1_2A,hybrid_chain_pep,Q1,-inf,0.349,1739,0.5929
+test_1_2A,hybrid_chain_pep,Q2,0.349,0.721,2672,0.8245
+test_1_2A,hybrid_chain_pep,Q3,0.721,1.066,3734,0.9012
+test_1_2A,hybrid_chain_pep,Q4,1.066,1.485,4507,0.9534
+test_1_2A,hybrid_chain_pep,Q5,1.485,inf,5591,0.9823
+test_1_2A,bib. (type),Q1,-inf,0.349,1739,0.5699
+test_1_2A,bib. (type),Q2,0.349,0.721,2672,0.5296
+test_1_2A,bib. (type),Q3,0.721,1.066,3734,0.5723
+test_1_2A,bib. (type),Q4,1.066,1.485,4507,0.6002
+test_1_2A,bib. (type),Q5,1.485,inf,5591,0.6197
+test_1_2A,bib. (type+phi/psi),Q1,-inf,0.349,1739,0.6009
+test_1_2A,bib. (type+phi/psi),Q2,0.349,0.721,2672,0.5902
+test_1_2A,bib. (type+phi/psi),Q3,0.721,1.066,3734,0.6960
+test_1_2A,bib. (type+phi/psi),Q4,1.066,1.485,4507,0.6951
+test_1_2A,bib. (type+phi/psi),Q5,1.485,inf,5591,0.6696
+test_2_3A,hybride,Q1,-inf,0.349,4096,0.4407
+test_2_3A,hybride,Q2,0.349,0.721,3984,0.6182
+test_2_3A,hybride,Q3,0.721,1.066,3714,0.7079
+test_2_3A,hybride,Q4,1.066,1.485,3134,0.7897
+test_2_3A,hybride,Q5,1.485,inf,1897,0.7981
+test_2_3A,hybrid_chain_pep,Q1,-inf,0.349,4096,0.5222
+test_2_3A,hybrid_chain_pep,Q2,0.349,0.721,3984,0.7257
+test_2_3A,hybrid_chain_pep,Q3,0.721,1.066,3714,0.8376
+test_2_3A,hybrid_chain_pep,Q4,1.066,1.485,3134,0.8979
+test_2_3A,hybrid_chain_pep,Q5,1.485,inf,1897,0.9283
+test_2_3A,bib. (type),Q1,-inf,0.349,4096,0.5164
+test_2_3A,bib. (type),Q2,0.349,0.721,3984,0.5643
+test_2_3A,bib. (type),Q3,0.721,1.066,3714,0.5991
+test_2_3A,bib. (type),Q4,1.066,1.485,3134,0.6085
+test_2_3A,bib. (type),Q5,1.485,inf,1897,0.5772
+test_2_3A,bib. (type+phi/psi),Q1,-inf,0.349,4096,0.5483
+test_2_3A,bib. (type+phi/psi),Q2,0.349,0.721,3984,0.6122
+test_2_3A,bib. (type+phi/psi),Q3,0.721,1.066,3714,0.6481
+test_2_3A,bib. (type+phi/psi),Q4,1.066,1.485,3134,0.6739
+test_2_3A,bib. (type+phi/psi),Q5,1.485,inf,1897,0.6500
+test_3_4A,hybride,Q1,-inf,0.349,6833,0.4250
+test_3_4A,hybride,Q2,0.349,0.721,5291,0.5175
+test_3_4A,hybride,Q3,0.721,1.066,3834,0.5934
+test_3_4A,hybride,Q4,1.066,1.485,2552,0.6348
+test_3_4A,hybride,Q5,1.485,inf,999,0.6456
+test_3_4A,hybrid_chain_pep,Q1,-inf,0.349,6833,0.5389
+test_3_4A,hybrid_chain_pep,Q2,0.349,0.721,5291,0.6963
+test_3_4A,hybrid_chain_pep,Q3,0.721,1.066,3834,0.7861
+test_3_4A,hybrid_chain_pep,Q4,1.066,1.485,2552,0.8464
+test_3_4A,hybrid_chain_pep,Q5,1.485,inf,999,0.8509
+test_3_4A,bib. (type),Q1,-inf,0.349,6833,0.5052
+test_3_4A,bib. (type),Q2,0.349,0.721,5291,0.5421
+test_3_4A,bib. (type),Q3,0.721,1.066,3834,0.5553
+test_3_4A,bib. (type),Q4,1.066,1.485,2552,0.5564
+test_3_4A,bib. (type),Q5,1.485,inf,999,0.5485
+test_3_4A,bib. (type+phi/psi),Q1,-inf,0.349,6833,0.5317
+test_3_4A,bib. (type+phi/psi),Q2,0.349,0.721,5291,0.5902
+test_3_4A,bib. (type+phi/psi),Q3,0.721,1.066,3834,0.5895
+test_3_4A,bib. (type+phi/psi),Q4,1.066,1.485,2552,0.6242
+test_3_4A,bib. (type+phi/psi),Q5,1.485,inf,999,0.6216

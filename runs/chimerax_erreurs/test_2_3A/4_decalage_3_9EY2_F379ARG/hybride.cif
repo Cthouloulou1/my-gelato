@@ -1,0 +1,35 @@
+data_hybride
+#
+loop_
+_atom_site.group_PDB
+_atom_site.id
+_atom_site.type_symbol
+_atom_site.label_atom_id
+_atom_site.label_comp_id
+_atom_site.label_asym_id
+_atom_site.label_entity_id
+_atom_site.label_seq_id
+_atom_site.Cartn_x
+_atom_site.Cartn_y
+_atom_site.Cartn_z
+_atom_site.occupancy
+_atom_site.B_iso_or_equiv
+_atom_site.auth_seq_id
+_atom_site.auth_comp_id
+_atom_site.auth_asym_id
+_atom_site.auth_atom_id
+_atom_site.pdbx_PDB_model_num
+_atom_site.label_alt_id
+_atom_site.pdbx_PDB_ins_code
+ATOM 1 N N ARG F 1 379 198.695 217.144 245.566 1.00 1.12 379 ARG F N 1 . ?
+ATOM 2 C CA ARG F 1 379 198.486 217.109 247.011 1.00 1.12 379 ARG F CA 1 . ?
+ATOM 3 C C ARG F 1 379 199.146 218.312 247.682 1.00 1.12 379 ARG F C 1 . ?
+ATOM 4 O O ARG F 1 379 198.592 218.857 248.626 1.00 1.12 379 ARG F O 1 . ?
+ATOM 5 C CB ARG F 1 379 199.003 215.784 247.612 1.00 1.12 379 ARG F CB 1 . ?
+ATOM 6 C CG ARG F 1 379 200.522 215.632 247.551 1.00 1.12 379 ARG F CG 1 . ?
+ATOM 7 C CD ARG F 1 379 200.954 214.230 247.947 1.00 1.12 379 ARG F CD 1 . ?
+ATOM 8 N NE ARG F 1 379 202.190 213.880 247.286 1.00 1.12 379 ARG F NE 1 . ?
+ATOM 9 C CZ ARG F 1 379 202.297 213.341 246.097 1.00 1.12 379 ARG F CZ 1 . ?
+ATOM 10 N NH1 ARG F 1 379 201.294 212.725 245.495 1.00 1.12 379 ARG F NH1 1 . ?
+ATOM 11 N NH2 ARG F 1 379 203.483 213.390 245.532 1.00 1.12 379 ARG F NH2 1 . ?
+#

@@ -1,0 +1,31 @@
+data_hybrid_chain_pep
+#
+loop_
+_atom_site.group_PDB
+_atom_site.id
+_atom_site.type_symbol
+_atom_site.label_atom_id
+_atom_site.label_comp_id
+_atom_site.label_asym_id
+_atom_site.label_entity_id
+_atom_site.label_seq_id
+_atom_site.Cartn_x
+_atom_site.Cartn_y
+_atom_site.Cartn_z
+_atom_site.occupancy
+_atom_site.B_iso_or_equiv
+_atom_site.auth_seq_id
+_atom_site.auth_comp_id
+_atom_site.auth_asym_id
+_atom_site.auth_atom_id
+_atom_site.pdbx_PDB_model_num
+_atom_site.label_alt_id
+_atom_site.pdbx_PDB_ins_code
+ATOM 1 N N THR G 1 86 169.065 183.142 238.218 1.00 0.83 86 THR G N 1 . ?
+ATOM 2 C CA THR G 1 86 170.471 183.412 238.430 1.00 0.83 86 THR G CA 1 . ?
+ATOM 3 C C THR G 1 86 171.213 182.774 237.254 1.00 0.83 86 THR G C 1 . ?
+ATOM 4 O O THR G 1 86 170.705 181.862 236.590 1.00 0.83 86 THR G O 1 . ?
+ATOM 5 C CB THR G 1 86 170.928 182.881 239.790 1.00 0.83 86 THR G CB 1 . ?
+ATOM 6 O OG1 THR G 1 86 169.931 181.992 240.353 1.00 0.83 86 THR G OG1 1 . ?
+ATOM 7 C CG2 THR G 1 86 171.202 184.011 240.756 1.00 0.83 86 THR G CG2 1 . ?
+#

@@ -1,0 +1,40 @@
+# Session generee par make_error_examples.py
+# Orientation : repere du squelette tourne de 63 deg
+# gris epais : vrai residu ; gris fin : vrais voisins +/-3 ; bleu : hybride, orange : hybrid_chain_pep
+close session
+set bgColor white
+lighting soft
+graphics silhouettes true width 1.5
+open "/home/eyerly/dev/my-gelato/runs/chimerax_erreurs/test_2_3A/2_orientation_1_6T0R_A59ASN/vrai.cif" name vrai
+open "/home/eyerly/dev/my-gelato/runs/chimerax_erreurs/test_2_3A/2_orientation_1_6T0R_A59ASN/hybride.cif" name hybride
+open "/home/eyerly/dev/my-gelato/runs/chimerax_erreurs/test_2_3A/2_orientation_1_6T0R_A59ASN/hybrid_chain_pep.cif" name hybrid_chain_pep
+cartoon hide
+hide atoms
+show #1-3 atoms
+style #1-3 stick
+size #1-3 stickRadius 0.15
+# voisins (vrai) : fins et gris
+color #1 #c9ccd1 target a
+size #1 stickRadius 0.08
+# #1 = vrai
+color #1/A:59 #52514e target a
+size #1/A:59 stickRadius 0.25
+# #2 = hybride
+color #2 #2a78d6 target a
+# #3 = hybrid_chain_pep
+color #3 #eb6834 target a
+view #1/A:59
+
+# --- utile ---
+# masquer un modele : hide #3 models   (et show #3 models)
+# vue detaillee (couleurs N/O, carte, etiquettes, distance de l'atome le plus faux, legende) : copier ces lignes dans ChimeraX
+#   color #1/A:59 byhetero
+#   color #2 byhetero
+#   color #3 byhetero
+#   open "/data/eyerly/pdb_cryoem_splits/6T0R/emd_10357.map"
+#   volume #4 style mesh sdLevel 1.5 color #9ec5f4
+#   volume zone #4 nearAtoms #1/A:59 range 3
+#   label #1-2/A:59@N,C,CB atoms height 0.4
+#   distance #1/A:59@O #2/A:59@O
+#   2dlabels text "Orientation : repere du squelette tourne de 63 deg" xpos 0.02 ypos 0.94 size 18 color black
+# image : save /home/eyerly/dev/my-gelato/runs/chimerax_erreurs/test_2_3A/2_orientation_1_6T0R_A59ASN/view.png width 1600 supersample 3

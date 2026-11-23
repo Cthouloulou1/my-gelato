@@ -1,0 +1,32 @@
+data_hybride
+#
+loop_
+_atom_site.group_PDB
+_atom_site.id
+_atom_site.type_symbol
+_atom_site.label_atom_id
+_atom_site.label_comp_id
+_atom_site.label_asym_id
+_atom_site.label_entity_id
+_atom_site.label_seq_id
+_atom_site.Cartn_x
+_atom_site.Cartn_y
+_atom_site.Cartn_z
+_atom_site.occupancy
+_atom_site.B_iso_or_equiv
+_atom_site.auth_seq_id
+_atom_site.auth_comp_id
+_atom_site.auth_asym_id
+_atom_site.auth_atom_id
+_atom_site.pdbx_PDB_model_num
+_atom_site.label_alt_id
+_atom_site.pdbx_PDB_ins_code
+ATOM 1 N N ASP B 1 258 88.433 56.100 79.321 1.00 1.12 258 ASP B N 1 . ?
+ATOM 2 C CA ASP B 1 258 88.677 56.853 78.106 1.00 1.12 258 ASP B CA 1 . ?
+ATOM 3 C C ASP B 1 258 87.613 57.886 77.747 1.00 1.12 258 ASP B C 1 . ?
+ATOM 4 O O ASP B 1 258 87.774 58.575 76.699 1.00 1.12 258 ASP B O 1 . ?
+ATOM 5 C CB ASP B 1 258 88.912 55.920 76.912 1.00 1.12 258 ASP B CB 1 . ?
+ATOM 6 C CG ASP B 1 258 89.535 56.612 75.719 1.00 1.12 258 ASP B CG 1 . ?
+ATOM 7 O OD1 ASP B 1 258 90.646 57.122 75.907 1.00 1.12 258 ASP B OD1 1 . ?
+ATOM 8 O OD2 ASP B 1 258 88.934 56.658 74.665 1.00 1.12 258 ASP B OD2 1 . ?
+#
