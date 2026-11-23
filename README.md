@@ -29,6 +29,7 @@ Deux modèles : un réseau **équivariant SO(3)** (e3nn, nuage de points) et un 
 | `make_chimerax_view.py` | Session ChimeraX d'une portion de protéine : vraie structure, résidus reconstruits par chaque modèle et carte de densité, à partir des prédictions sauvegardées |
 | `make_error_examples.py` | Sessions ChimeraX d'exemples typiques de chaque type d'erreur (sens de chaîne, orientation, rotamère, décalage), avec la densité et la comparaison à un second modèle |
 | `summarize_flow_options.py` | Tableau récapitulatif de tous les modèles de flow (RMSD par résolution, squelette, échecs, orientation, GLY inversés, acides aminés D, χ1, clashes, liaison C–N), à partir des sorties des scripts d'évaluation et d'analyse |
+| `plot_flow_options.py` | Barres horizontales (en anglais) du tableau de `summarize_flow_options.py`, pour les présentations |
 | `summarize_seeds.py` | Résumé multi-seeds des évaluations de flow : moyenne ± écart-type, écart à une référence, figures avec barres d'erreur |
 | `run_flow_e100.sh` / `run_flow_seeds.sh` | Enchaînent les entraînements des variantes de flow (100 epochs ; seeds supplémentaires), l'évaluation et l'analyse |
 | `replot_reports.py` | Régénère confusion / ROC / AUC par classe à partir des `*_predictions.npz`, sans relancer d'inférence |
@@ -277,6 +278,10 @@ colonnes détaillées sur `--set` (défaut `test_3_4A`). Écrit `runs/flow_optio
 ```bash
 python summarize_flow_options.py                 # ou --set test_2_3A --out runs/flow_options_2_3A
 ```
+
+`plot_flow_options.py` en tire des barres horizontales (étiquettes en anglais, couleur par famille
+d'options, barres d'erreur = écart-type des seeds) dans `runs/flow_options_plots/` :
+`rmsd_by_resolution.png`, `details_<set>.png` et un fichier par panneau dans `single/`.
 
 **Un exemple par type d'erreur** (`make_error_examples.py`). Le premier `--pred` classe les erreurs ;
 pour chaque type, `--n` résidus typiques (RMSD proche de la médiane du type, chaîne latérale lisible,
