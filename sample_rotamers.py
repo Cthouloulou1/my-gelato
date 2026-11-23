@@ -108,6 +108,8 @@ def main():
     p.add_argument("--out-dir", default="runs/rotamer_best_of_k")
     p.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     args = p.parse_args()
+    # chi absents (GLY, ALA...) : angles NaN, masques ensuite
+    np.seterr(invalid="ignore", divide="ignore")
     device = torch.device(args.device)
 
     name, path = args.model.split("=", 1)
@@ -188,7 +190,8 @@ def main():
             c1[k], rot[k], rm[k] = evaluate(X[k], gt, mask, rt, args.chi_tol)
             chi = geo.chis(X[k].astype(np.float64), rt)[:, 0]
             c = np.where(pi1, np.mod(chi, 180.0), np.mod(chi, 360.0))
-            bins[k] = np.floor(c / np.where(pi1, 60.0, 120.0)).astype(np.int64).clip(0, 2)
+            c = np.floor(c / np.where(pi1, 60.0, 120.0))
+            bins[k] = np.where(np.isfinite(c), c, 0).astype(np.int64).clip(0, 2)
         has = geo.CHI_MASK[rt][:, 0]
 
         # choix

@@ -67,7 +67,8 @@ LIB_NAMES = ("bib. (type)", "bib. (type+phi/psi)")
 def chi_bins(chi, pi):
     """Case de chaque chi : 3 cases de 120 deg (60 deg si pi-periodique)."""
     c = np.where(pi, np.mod(chi, 180.0), np.mod(chi, 360.0))
-    return np.floor(c / np.where(pi, 60.0, 120.0)).astype(np.int64).clip(0, 2)
+    b = np.floor(c / np.where(pi, 60.0, 120.0))
+    return np.where(np.isfinite(b), b, 0).astype(np.int64).clip(0, 2)
 
 
 def rot_code(bins, cmask):
@@ -217,6 +218,8 @@ def main():
     ap.add_argument("--num-workers", type=int, default=4)
     ap.add_argument("--out-dir", default="runs/rotamer_diagnostics")
     args = ap.parse_args()
+    # chi absents (GLY, ALA...) : angles NaN, masques ensuite
+    np.seterr(invalid="ignore", divide="ignore")
     preds = args.pred or ["hybride=runs/evaluation_flow_context_e100/hybride",
                           "hybrid_chain_pep=runs/evaluation_flow_context_e100/hybrid_chain_pep"]
     specs = [tuple(p.split("=", 1)) for p in preds]
