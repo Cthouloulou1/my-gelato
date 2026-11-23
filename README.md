@@ -28,6 +28,7 @@ Deux modèles : un réseau **équivariant SO(3)** (e3nn, nuage de points) et un 
 | `analyze_flow_geometry.py` | Nature des erreurs (sens de chaîne, orientation du squelette, rotamère χ1–χ4, décalage) et chimie (liaisons, angles, chiralité, planéité des cycles, contacts), à partir des `*_predictions.npz` |
 | `make_chimerax_view.py` | Session ChimeraX d'une portion de protéine : vraie structure, résidus reconstruits par chaque modèle et carte de densité, à partir des prédictions sauvegardées |
 | `make_error_examples.py` | Sessions ChimeraX d'exemples typiques de chaque type d'erreur (sens de chaîne, orientation, rotamère, décalage), avec la densité et la comparaison à un second modèle |
+| `summarize_flow_options.py` | Tableau récapitulatif de tous les modèles de flow (RMSD par résolution, squelette, échecs, orientation, GLY inversés, acides aminés D, χ1, clashes, liaison C–N), à partir des sorties des scripts d'évaluation et d'analyse |
 | `summarize_seeds.py` | Résumé multi-seeds des évaluations de flow : moyenne ± écart-type, écart à une référence, figures avec barres d'erreur |
 | `run_flow_e100.sh` / `run_flow_seeds.sh` | Enchaînent les entraînements des variantes de flow (100 epochs ; seeds supplémentaires), l'évaluation et l'analyse |
 | `replot_reports.py` | Régénère confusion / ROC / AUC par classe à partir des `*_predictions.npz`, sans relancer d'inférence |
@@ -266,6 +267,15 @@ python make_chimerax_view.py --atom14 /data/eyerly/splits_atom14.npz \
     --splits /data/eyerly/pdb_cryoem_splits/splits.json \
     --eval-dir runs/evaluation_flow_e100 --set test_1_2A --pick aromatic
 chimerax runs/chimerax/test_1_2A_<PDB>_<chaine><debut>-<fin>/view.cxc
+```
+
+**Tableau récapitulatif** (`summarize_flow_options.py`). Rassemble, sans rien recalculer, les
+`summary.csv` de `evaluate_flow.py` (moyenne ± écart-type des seeds via `seeds_summary.csv`) et les
+CSV de `analyze_flow_errors.py` et `analyze_flow_geometry.py` en un tableau, un modèle par ligne ;
+colonnes détaillées sur `--set` (défaut `test_3_4A`). Écrit `runs/flow_options_summary.csv` et `.md`.
+
+```bash
+python summarize_flow_options.py                 # ou --set test_2_3A --out runs/flow_options_2_3A
 ```
 
 **Un exemple par type d'erreur** (`make_error_examples.py`). Le premier `--pred` classe les erreurs ;
