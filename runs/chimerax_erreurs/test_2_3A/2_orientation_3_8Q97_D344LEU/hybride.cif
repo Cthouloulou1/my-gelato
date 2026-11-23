@@ -1,0 +1,32 @@
+data_hybride
+#
+loop_
+_atom_site.group_PDB
+_atom_site.id
+_atom_site.type_symbol
+_atom_site.label_atom_id
+_atom_site.label_comp_id
+_atom_site.label_asym_id
+_atom_site.label_entity_id
+_atom_site.label_seq_id
+_atom_site.Cartn_x
+_atom_site.Cartn_y
+_atom_site.Cartn_z
+_atom_site.occupancy
+_atom_site.B_iso_or_equiv
+_atom_site.auth_seq_id
+_atom_site.auth_comp_id
+_atom_site.auth_asym_id
+_atom_site.auth_atom_id
+_atom_site.pdbx_PDB_model_num
+_atom_site.label_alt_id
+_atom_site.pdbx_PDB_ins_code
+ATOM 1 N N LEU D 1 344 141.480 212.520 180.138 1.00 2.30 344 LEU D N 1 . ?
+ATOM 2 C CA LEU D 1 344 142.556 213.480 180.323 1.00 2.30 344 LEU D CA 1 . ?
+ATOM 3 C C LEU D 1 344 142.302 214.773 179.631 1.00 2.30 344 LEU D C 1 . ?
+ATOM 4 O O LEU D 1 344 142.474 215.189 178.614 1.00 2.30 344 LEU D O 1 . ?
+ATOM 5 C CB LEU D 1 344 143.949 212.917 180.041 1.00 2.30 344 LEU D CB 1 . ?
+ATOM 6 C CG LEU D 1 344 144.201 211.643 180.787 1.00 2.30 344 LEU D CG 1 . ?
+ATOM 7 C CD1 LEU D 1 344 143.009 210.928 181.185 1.00 2.30 344 LEU D CD1 1 . ?
+ATOM 8 C CD2 LEU D 1 344 145.038 210.629 179.949 1.00 2.30 344 LEU D CD2 1 . ?
+#

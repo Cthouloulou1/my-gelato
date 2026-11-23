@@ -1,0 +1,31 @@
+data_hybride
+#
+loop_
+_atom_site.group_PDB
+_atom_site.id
+_atom_site.type_symbol
+_atom_site.label_atom_id
+_atom_site.label_comp_id
+_atom_site.label_asym_id
+_atom_site.label_entity_id
+_atom_site.label_seq_id
+_atom_site.Cartn_x
+_atom_site.Cartn_y
+_atom_site.Cartn_z
+_atom_site.occupancy
+_atom_site.B_iso_or_equiv
+_atom_site.auth_seq_id
+_atom_site.auth_comp_id
+_atom_site.auth_asym_id
+_atom_site.auth_atom_id
+_atom_site.pdbx_PDB_model_num
+_atom_site.label_alt_id
+_atom_site.pdbx_PDB_ins_code
+ATOM 1 N N VAL C 1 178 169.499 164.689 169.072 1.00 1.39 178 VAL C N 1 . ?
+ATOM 2 C CA VAL C 1 178 170.945 164.720 169.259 1.00 1.39 178 VAL C CA 1 . ?
+ATOM 3 C C VAL C 1 178 171.613 165.006 167.931 1.00 1.39 178 VAL C C 1 . ?
+ATOM 4 O O VAL C 1 178 172.781 165.338 167.849 1.00 1.39 178 VAL C O 1 . ?
+ATOM 5 C CB VAL C 1 178 171.467 163.414 169.867 1.00 1.39 178 VAL C CB 1 . ?
+ATOM 6 C CG1 VAL C 1 178 172.936 163.547 170.246 1.00 1.39 178 VAL C CG1 1 . ?
+ATOM 7 C CG2 VAL C 1 178 170.632 162.992 171.049 1.00 1.39 178 VAL C CG2 1 . ?
+#

@@ -1,0 +1,33 @@
+data_hybride
+#
+loop_
+_atom_site.group_PDB
+_atom_site.id
+_atom_site.type_symbol
+_atom_site.label_atom_id
+_atom_site.label_comp_id
+_atom_site.label_asym_id
+_atom_site.label_entity_id
+_atom_site.label_seq_id
+_atom_site.Cartn_x
+_atom_site.Cartn_y
+_atom_site.Cartn_z
+_atom_site.occupancy
+_atom_site.B_iso_or_equiv
+_atom_site.auth_seq_id
+_atom_site.auth_comp_id
+_atom_site.auth_asym_id
+_atom_site.auth_atom_id
+_atom_site.pdbx_PDB_model_num
+_atom_site.label_alt_id
+_atom_site.pdbx_PDB_ins_code
+ATOM 1 N N GLN E 1 789 196.529 241.510 252.472 1.00 2.31 789 GLN E N 1 . ?
+ATOM 2 C CA GLN E 1 789 197.493 242.546 252.162 1.00 2.31 789 GLN E CA 1 . ?
+ATOM 3 C C GLN E 1 789 198.700 242.185 251.258 1.00 2.31 789 GLN E C 1 . ?
+ATOM 4 O O GLN E 1 789 198.882 243.042 250.318 1.00 2.31 789 GLN E O 1 . ?
+ATOM 5 C CB GLN E 1 789 197.796 243.438 253.327 1.00 2.31 789 GLN E CB 1 . ?
+ATOM 6 C CG GLN E 1 789 198.337 244.777 252.933 1.00 2.31 789 GLN E CG 1 . ?
+ATOM 7 C CD GLN E 1 789 198.269 245.877 254.033 1.00 2.31 789 GLN E CD 1 . ?
+ATOM 8 O OE1 GLN E 1 789 198.399 245.549 255.199 1.00 2.31 789 GLN E OE1 1 . ?
+ATOM 9 N NE2 GLN E 1 789 198.083 247.090 253.618 1.00 2.31 789 GLN E NE2 1 . ?
+#

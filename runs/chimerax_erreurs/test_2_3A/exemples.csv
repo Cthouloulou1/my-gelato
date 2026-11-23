@@ -1,0 +1,13 @@
+type,dossier,pdb,chaine,numero,residu,rmsd,repere_deg,forme,dchi1,dchi2,dchi3,dchi4,atome_pire,erreur_pire,autres_modeles
+sens de chaine,1_sens_chaine_1_6T0R_C106SER,6T0R,C,106,SER,2.448,175.8,1.052,139,,,,O,4.20,hybrid_chain_pep 0.49 A
+sens de chaine,1_sens_chaine_2_8TMG_G86THR,8TMG,G,86,THR,2.454,161.9,0.266,33,,,,O,3.39,hybrid_chain_pep 0.83 A
+sens de chaine,1_sens_chaine_3_9K6T_A507HIS,9K6T,A,507,HIS,2.457,166.8,1.818,154,162,,,O,3.58,hybrid_chain_pep 1.77 A
+orientation,2_orientation_1_6T0R_A59ASN,6T0R,A,59,ASN,2.305,62.6,0.787,13,5,,,O,3.79,hybrid_chain_pep 1.25 A
+orientation,2_orientation_2_9EY2_E789GLN,9EY2,E,789,GLN,2.305,104.4,1.102,81,123,39,,O,3.54,hybrid_chain_pep 2.27 A
+orientation,2_orientation_3_8Q97_D344LEU,8Q97,D,344,LEU,2.302,61.5,1.251,5,159,,,CD2,4.45,hybrid_chain_pep 0.64 A
+rotamere,3_rotamere_1_9YFV_B377LEU,9YFV,B,377,LEU,1.394,5.0,1.262,43,144,,,CD1,2.66,hybrid_chain_pep 1.38 A
+rotamere,3_rotamere_2_8TMG_C178VAL,8TMG,C,178,VAL,1.394,4.6,1.068,116,,,,CG2,2.49,hybrid_chain_pep 1.36 A
+rotamere,3_rotamere_3_9EY2_E179THR,9EY2,E,179,THR,1.395,14.7,1.187,133,,,,OG1,2.62,hybrid_chain_pep 1.44 A
+decalage,4_decalage_1_8J6Q_B258ASP,8J6Q,B,258,ASP,1.117,24.7,0.253,12,14,,,O,1.64,hybrid_chain_pep 0.72 A
+decalage,4_decalage_2_9P94_N47TRP,9P94,N,47,TRP,1.119,26.5,0.381,27,22,,,NE1,2.04,hybrid_chain_pep 0.49 A
+decalage,4_decalage_3_9EY2_F379ARG,9EY2,F,379,ARG,1.120,8.2,0.380,9,2,21,14,NH2,1.99,hybrid_chain_pep 0.77 A
