@@ -31,6 +31,8 @@ Usage (contexte : hybride classe, hybrid_chain_pep affiche en plus) :
         --pred hybride=runs/evaluation_flow_context_e100/hybride \\
         --pred hybrid_chain_pep=runs/evaluation_flow_context_e100/hybrid_chain_pep
 Puis :  chimerax runs/chimerax_erreurs/test_2_3A/1_orientation_*/view.cxc
+Un type d'erreur et un acide amine precis (ex. rotamere faux d'arginine) :
+    ... --kinds rotamere --restype ARG
 """
 
 import argparse
@@ -153,6 +155,10 @@ def main():
                     help="nom=dossier d'un modele (contenant <ensemble>_predictions.npz) ; "
                          "le premier sert a classer les erreurs")
     ap.add_argument("--n", type=int, default=3, help="exemples par type d'erreur")
+    ap.add_argument("--kinds", nargs="*", default=KINDS, choices=KINDS,
+                    help="types d'erreur a montrer (ex. --kinds rotamere)")
+    ap.add_argument("--restype", nargs="*", default=None,
+                    help="ne choisir que ces acides amines (ex. --restype ARG)")
     ap.add_argument("--flank", type=int, default=3, help="voisins affiches de chaque cote")
     ap.add_argument("--data-dir", default=None,
                     help="dossier <PDB>/emd_*.map (defaut : celui de splits.json)")
@@ -193,6 +199,8 @@ def main():
         return key.get((str(a14["pdb_ids"][i]), str(a14["chains"][i]), int(a14["seqids"][i]) + d))
 
     has_nb = np.array([nb(i, -1) is not None and nb(i, 1) is not None for i in idx])
+    if args.restype:
+        has_nb &= np.isin(rt, [STANDARD.index(r.upper()) for r in args.restype])
     n_atoms = mask.sum(1)
 
     out_root = os.path.join(args.out_dir, args.set)
@@ -201,6 +209,8 @@ def main():
     rows = []
     print(f"{args.set} : {len(rt)} residus, classes selon {specs[0][0]}")
     for k, kind in enumerate(KINDS, start=1):
+        if kind not in args.kinds:
+            continue
         chosen = pick(kind, o, rt, n_atoms, has_nb, entry, args.n)
         n_kind = int((o["fail_kind"] == kind).sum())
         print(f"\n{kind} : {n_kind} residus ({n_kind / len(rt):.1%}), {len(chosen)} exemple(s)")
