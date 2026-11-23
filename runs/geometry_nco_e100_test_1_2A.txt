@@ -1,0 +1,53 @@
+
+1. Rotameres (chi juste si |delta| <= 40 deg)
+                 chi1  chi1+2 complet   |dchi1|  |dchi2|  |dchi3|  |dchi4|
+       joint   82.5 %  67.5 %  63.4 %      25.1     34.7     61.5     73.5
+       atome   86.2 %  71.1 %  67.5 %      22.0     32.4     56.3     63.2
+    backbone   87.2 %  72.7 %  69.4 %      20.8     31.1     52.4     63.0
+     hybride   86.9 %  73.3 %  69.1 %      21.0     31.1     54.2     63.3
+  hybrid_nco   86.8 %  73.0 %  68.8 %      20.8     31.3     54.9     63.4
+backbone_nco   87.4 %  72.7 %  68.5 %      20.6     31.4     55.1     61.6
+
+   chi1 juste par type d'acide amine
+ type         joint         atome      backbone       hybride    hybrid_nco  backbone_nco
+  ARG        71.6 %        77.8 %        79.0 %        80.1 %        80.5 %        83.2 %
+  ASN        87.9 %        89.1 %        91.2 %        90.4 %        90.9 %        91.0 %
+  ASP        79.2 %        83.8 %        84.8 %        84.2 %        84.7 %        85.1 %
+  CYS        89.6 %        94.4 %        95.1 %        93.1 %        94.5 %        95.1 %
+  GLN        76.8 %        83.3 %        84.5 %        87.5 %        86.1 %        85.8 %
+  GLU        63.9 %        70.6 %        71.8 %        74.2 %        72.6 %        73.3 %
+  HIS        96.9 %        95.1 %        97.4 %        97.5 %        97.4 %        97.9 %
+  ILE        91.8 %        93.1 %        92.6 %        91.9 %        93.2 %        93.7 %
+  LEU        90.7 %        94.0 %        93.1 %        94.7 %        94.0 %        94.0 %
+  LYS        71.0 %        77.2 %        76.6 %        77.1 %        76.7 %        78.4 %
+  MET        72.0 %        76.3 %        77.9 %        73.2 %        74.2 %        74.6 %
+  PHE        95.7 %        94.4 %        97.3 %        96.0 %        96.0 %        95.6 %
+  PRO        93.5 %        90.7 %        91.1 %        91.9 %        92.5 %        91.0 %
+  SER        63.6 %        73.8 %        75.6 %        71.5 %        71.4 %        73.6 %
+  THR        78.5 %        84.6 %        86.5 %        84.7 %        83.7 %        85.2 %
+  TRP        94.6 %        92.3 %        97.9 %        96.4 %        95.4 %        96.1 %
+  TYR        94.6 %        95.4 %        95.4 %        96.2 %        96.2 %        94.4 %
+  VAL        82.9 %        86.7 %        87.0 %        87.1 %        87.3 %        88.2 %
+
+2. Origine des erreurs : residus a RMSD > 1 A, classes en sens de chaine > orientation (> 30 deg) > rotamere > decalage
+               echecs  sens de chaine     orientation        rotamere        decalage   repere sc local  forme
+       joint   23.2 %    0.5 % (  2%)    6.5 % ( 28%)   15.5 % ( 67%)    0.8 % (  3%)    14.7d    0.764  0.352
+       atome   22.5 %    0.9 % (  4%)    6.8 % ( 30%)   13.8 % ( 62%)    0.9 % (  4%)    16.2d    0.729  0.329
+    backbone   19.7 %    0.4 % (  2%)    4.8 % ( 24%)   13.7 % ( 69%)    0.8 % (  4%)    12.4d    0.706  0.312
+     hybride   20.1 %    0.5 % (  2%)    5.0 % ( 25%)   14.0 % ( 69%)    0.7 % (  4%)    12.7d    0.721  0.317
+  hybrid_nco   20.7 %    0.4 % (  2%)    5.6 % ( 27%)   13.9 % ( 67%)    0.8 % (  4%)    13.2d    0.697  0.319
+backbone_nco   20.6 %    0.4 % (  2%)    5.3 % ( 26%)   14.0 % ( 68%)    0.9 % (  4%)    12.9d    0.697  0.317
+   (x % (y%) : x % de TOUS les residus, y % des echecs ; repere : erreur moyenne d'orientation du squelette ; sc local : RMSD chaine laterale dans le repere du squelette ; forme : RMSD apres superposition optimale du residu)
+
+3. Chimie (erreurs par rapport a la vraie structure)
+               liaisons   angles   CA (D) chiralite   cycles contacts
+        vrai                                           0.003    0.1 %
+       joint      0.024     2.37    0.2 %     0.2 %    0.021    0.4 %
+       atome      0.009     1.04    0.0 %     0.0 %    0.009    1.0 %
+    backbone      0.011     1.34    1.2 %     1.2 %    0.010    0.8 %
+     hybride      0.012     1.34    1.3 %     1.3 %    0.018    0.8 %
+  hybrid_nco      0.013     1.39    0.0 %     0.0 %    0.018    0.6 %
+backbone_nco      0.011     1.23    0.0 %     0.0 %    0.009    0.8 %
+   (liaisons : |ecart| moyen des longueurs, A ; angles : |ecart| moyen des angles de liaison, deg ; CA (D) : C-alpha inverse (acide amine D) ; chiralite : un centre chiral quelconque inverse (CA ou CB de ILE/THR) ; cycles : ecart RMS au plan, A ; contacts : residus avec 2 atomes non lies a < 2.5 A)
+
+Ecrit dans runs/geometry_nco_e100/test_1_2A

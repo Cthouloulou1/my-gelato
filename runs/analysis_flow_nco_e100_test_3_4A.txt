@@ -1,0 +1,44 @@
+
+1. Erreur moyenne par rang de placement (A) ; entre parentheses : erreur locale
+   (rangs : 1=N, 2=C, 3=CB, 4=O, 5=CG, 6=CD, 7=NE, ... pour ARG ; 3 = O pour GLY)
+rang  n_atomes (joint)             joint             atome          backbone           hybride        hybrid_nco      backbone_nco
+   1             22354    0.868 (0.868)    0.924 (0.924)    0.835 (0.835)    0.831 (0.831)    0.841 (0.841)    0.846 (0.846)
+   2             22354    0.911 (0.911)    1.001 (1.001)    0.873 (0.873)    0.879 (0.879)    0.883 (0.883)    0.889 (0.889)
+   3             22354    0.834 (0.776)    0.953 (0.890)    0.847 (0.797)    0.845 (0.793)    0.912 (0.861)    0.902 (0.851)
+   4             21063    1.599 (0.915)    1.756 (0.985)    1.581 (0.924)    1.583 (0.922)    1.603 (0.946)    1.606 (0.945)
+   5             19509    1.459 (1.213)    1.590 (1.230)    1.499 (1.203)    1.483 (1.194)    1.577 (1.205)    1.559 (1.199)
+   6             17416    1.863 (1.307)    2.030 (1.325)    1.935 (1.283)    1.922 (1.281)    2.012 (1.288)    1.986 (1.287)
+   7             13342    2.209 (1.313)    2.410 (1.333)    2.334 (1.299)    2.296 (1.297)    2.420 (1.309)    2.387 (1.312)
+   8              7120    2.689 (1.082)    3.143 (1.178)    3.042 (1.153)    2.949 (1.123)    3.158 (1.162)    3.104 (1.150)
+   9              4005    2.461 (0.988)    3.075 (1.134)    3.003 (1.103)    2.811 (1.060)    3.073 (1.088)    3.038 (1.107)
+  10              3574    2.539 (1.073)    3.305 (1.139)    3.237 (1.134)    3.022 (1.102)    3.302 (1.126)    3.281 (1.148)
+
+2. Residus avec N et C inverses (sens de la chaine)
+             joint : GLY   7.4% (n=1291)   autres   1.5%
+             atome : GLY  12.9% (n=1291)   autres   4.6%
+          backbone : GLY   9.4% (n=1291)   autres   3.9%
+           hybride : GLY   9.7% (n=1291)   autres   4.3%
+        hybrid_nco : GLY   9.6% (n=1291)   autres   4.0%
+      backbone_nco : GLY   9.5% (n=1291)   autres   4.1%
+
+3. Erreur locale de l'atome selon l'erreur de son parent (rangs >= 5)
+          parent    0-0.5 A    0.5-1 A      1-2 A      2-4 A       >4 A
+           joint      0.844      1.180      1.385      1.583      1.832
+           atome      0.836      1.138      1.387      1.587      1.884
+        backbone      0.834      1.127      1.365      1.565      1.889
+         hybride      0.817      1.120      1.374      1.570      1.888
+      hybrid_nco      0.802      1.098      1.375      1.582      1.874
+    backbone_nco      0.815      1.102      1.359      1.577      1.882
+
+4. Liaison peptidique entre residus consecutifs (test_3_4A), chaque residu etant predit separement
+                  paires  C-N moy |err C-N|  >0.1 A  >0.3 A |err 1-3| |err omega| omega<150
+            vrai   21902    1.332                                                      0.2%
+           joint   21902    2.261     1.016   84.5%   60.3%     0.677        41.4     42.2%
+           atome   21902    2.373     1.126   85.2%   62.4%     0.750        45.6     46.6%
+        backbone   21902    2.228     0.984   82.0%   56.2%     0.656        39.7     39.8%
+         hybride   21902    2.232     0.988   82.6%   56.1%     0.660        39.8     39.6%
+      hybrid_nco   21902    2.230     0.990   82.4%   56.1%     0.661        39.7     40.1%
+    backbone_nco   21902    2.251     1.009   83.4%   57.4%     0.670        40.2     39.7%
+  (|err| : ecart a la vraie valeur, A ; omega : diedre CA-C-N-CA, degres ; omega<150 : plan peptidique tordu)
+
+Tables ecrites dans runs/analysis_flow_nco_e100/test_3_4A

@@ -1,0 +1,38 @@
+
+1. Erreur moyenne par rang de placement (A) ; entre parentheses : erreur locale
+   (rangs : 1=N, 2=C, 3=CB, 4=O, 5=CG, 6=CD, 7=NE, ... pour ARG ; 3 = O pour GLY)
+rang  n_atomes (hybride)           hybride  hybrid_chain_pep    hybrid_knn_pep        hybrid_pep
+   1               22354    0.831 (0.831)    0.138 (0.138)    0.260 (0.260)    0.815 (0.815)
+   2               22354    0.879 (0.879)    0.193 (0.193)    0.313 (0.313)    0.862 (0.862)
+   3               22354    0.845 (0.793)    0.253 (0.238)    0.359 (0.334)    0.833 (0.782)
+   4               21063    1.583 (0.922)    0.582 (0.407)    0.702 (0.440)    1.561 (0.910)
+   5               19509    1.483 (1.194)    0.917 (0.856)    0.989 (0.888)    1.468 (1.192)
+   6               17416    1.922 (1.281)    1.315 (1.024)    1.383 (1.047)    1.898 (1.282)
+   7               13342    2.296 (1.297)    1.641 (1.115)    1.712 (1.136)    2.270 (1.296)
+   8                7120    2.949 (1.123)    1.994 (0.905)    2.084 (0.927)    2.910 (1.124)
+   9                4005    2.811 (1.060)    1.657 (0.781)    1.713 (0.802)    2.774 (1.048)
+  10                3574    3.022 (1.102)    1.743 (0.886)    1.830 (0.911)    2.960 (1.105)
+
+2. Residus avec N et C inverses (sens de la chaine)
+           hybride : GLY   9.7% (n=1291)   autres   4.3%
+  hybrid_chain_pep : GLY   0.0% (n=1291)   autres   0.0%
+    hybrid_knn_pep : GLY   7.8% (n=1291)   autres   3.2%
+        hybrid_pep : GLY  10.0% (n=1291)   autres   4.0%
+
+3. Erreur locale de l'atome selon l'erreur de son parent (rangs >= 5)
+          parent    0-0.5 A    0.5-1 A      1-2 A      2-4 A       >4 A
+         hybride      0.817      1.120      1.374      1.570      1.888
+hybrid_chain_pep      0.773      0.943      1.221      1.458      1.787
+  hybrid_knn_pep      0.762      0.962      1.247      1.496      1.787
+      hybrid_pep      0.819      1.127      1.383      1.565      1.889
+
+4. Liaison peptidique entre residus consecutifs (test_3_4A), chaque residu etant predit separement
+                  paires  C-N moy |err C-N|  >0.1 A  >0.3 A |err 1-3| |err omega| omega<150
+            vrai   21902    1.332                                                      0.2%
+         hybride   21902    2.232     0.988   82.6%   56.1%     0.660        39.8     39.6%
+hybrid_chain_pep   21902    1.293     0.067   20.7%    1.8%     0.046         8.8      4.2%
+  hybrid_knn_pep   21902    1.537     0.261   19.0%   10.7%     0.172        12.7     10.5%
+      hybrid_pep   21902    2.203     0.961   81.4%   54.0%     0.641        39.2     39.2%
+  (|err| : ecart a la vraie valeur, A ; omega : diedre CA-C-N-CA, degres ; omega<150 : plan peptidique tordu)
+
+Tables ecrites dans runs/analysis_flow_context_e100/test_3_4A

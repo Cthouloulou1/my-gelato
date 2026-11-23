@@ -1,0 +1,12 @@
+{
+  "n_residues": 15392,
+  "rmsd_mean": 0.4543023096872863,
+  "rmsd_median": 0.22712444329640086,
+  "rmsd_backbone_mean": 0.15746656149491584,
+  "rmsd_sidechain_mean": 0.5743766973522633,
+  "frac_rmsd_lt_1A": 0.8646699584199584,
+  "frac_rmsd_lt_2A": 0.9710239085239085,
+  "bond_err_mean": 0.014231768709597171,
+  "angle13_err_mean": 0.022831419910535566,
+  "sample_steps": 50
+}
