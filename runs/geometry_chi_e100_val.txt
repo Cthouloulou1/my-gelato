@@ -1,0 +1,44 @@
+
+1. Rotameres (chi juste si |delta| <= 40 deg)
+                          chi1  chi1+2 complet   |dchi1|  |dchi2|  |dchi3|  |dchi4|
+     hybrid_chain_pep   92.0 %  81.2 %  75.2 %      14.9     25.3     44.1     55.8
+ hybrid_chain_pep_chi   91.5 %  80.8 %  74.3 %      15.6     25.4     45.1     56.5
+hybrid_chain_pep_chi3   91.0 %  79.9 %  74.0 %      16.4     26.2     44.2     55.4
+
+   chi1 juste par type d'acide amine
+ type       hybrid_chain_pep   hybrid_chain_pep_chi  hybrid_chain_pep_chi3
+  ARG                 90.8 %                 90.1 %                 91.0 %
+  ASN                 95.9 %                 95.1 %                 95.7 %
+  ASP                 92.3 %                 91.5 %                 91.2 %
+  CYS                 91.6 %                 90.8 %                 91.6 %
+  GLN                 89.0 %                 88.6 %                 89.2 %
+  GLU                 82.1 %                 82.3 %                 80.7 %
+  HIS                 95.0 %                 94.8 %                 94.8 %
+  ILE                 95.3 %                 94.9 %                 94.1 %
+  LEU                 97.1 %                 97.1 %                 97.5 %
+  LYS                 87.3 %                 86.1 %                 83.8 %
+  MET                 88.4 %                 90.4 %                 87.8 %
+  PHE                 99.3 %                 99.3 %                 99.0 %
+  PRO                 95.8 %                 95.4 %                 95.9 %
+  SER                 82.7 %                 79.9 %                 79.4 %
+  THR                 88.9 %                 87.5 %                 86.9 %
+  TRP                 99.1 %                 97.8 %                 93.4 %
+  TYR                 99.9 %                 99.9 %                100.0 %
+  VAL                 92.8 %                 92.4 %                 91.5 %
+
+2. Origine des erreurs : residus a RMSD > 1 A, classes en sens de chaine > orientation (> 30 deg) > rotamere > decalage
+                        echecs  sens de chaine     orientation        rotamere        decalage   repere sc local  forme
+     hybrid_chain_pep   13.1 %    0.0 % (  0%)    1.2 % ( 10%)   11.3 % ( 87%)    0.5 % (  4%)     4.5d    0.548  0.251
+ hybrid_chain_pep_chi   13.7 %    0.0 % (  0%)    1.6 % ( 11%)   11.7 % ( 85%)    0.5 % (  4%)     5.0d    0.566  0.259
+hybrid_chain_pep_chi3   14.5 %    0.0 % (  0%)    2.2 % ( 15%)   11.7 % ( 80%)    0.6 % (  4%)     6.2d    0.595  0.273
+   (x % (y%) : x % de TOUS les residus, y % des echecs ; repere : erreur moyenne d'orientation du squelette ; sc local : RMSD chaine laterale dans le repere du squelette ; forme : RMSD apres superposition optimale du residu)
+
+3. Chimie (erreurs par rapport a la vraie structure)
+                        liaisons   angles   CA (D) chiralite   cycles contacts
+                 vrai                                           0.003    0.2 %
+     hybrid_chain_pep      0.011     1.15    0.6 %     0.6 %    0.012    0.8 %
+ hybrid_chain_pep_chi      0.016     1.59    0.6 %     0.6 %    0.019    0.6 %
+hybrid_chain_pep_chi3      0.023     2.38    0.6 %     0.7 %    0.028    0.6 %
+   (liaisons : |ecart| moyen des longueurs, A ; angles : |ecart| moyen des angles de liaison, deg ; CA (D) : C-alpha inverse (acide amine D) ; chiralite : un centre chiral quelconque inverse (CA ou CB de ILE/THR) ; cycles : ecart RMS au plan, A ; contacts : residus avec 2 atomes non lies a < 2.5 A)
+
+Ecrit dans runs/geometry_chi_e100/val

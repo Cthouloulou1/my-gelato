@@ -1,0 +1,94 @@
+Bibliotheque : 82821 residus du train ; 404 cases (type, phi/psi) avec >= 20 exemples
+
+=== val : 12930 residus avec chi1 ===
+                         chi1    rotamere
+      hybrid_chain_pep   92.0 %   75.2 %
+  hybrid_chain_pep_chi   91.5 %   74.3 %
+ hybrid_chain_pep_chi3   91.0 %   74.0 %
+           bib. (type)   58.1 %   42.7 %
+   bib. (type+phi/psi)   66.0 %   50.7 %
+
+  residus a chi1 faux              n   comme la bib.   densite pred > vraie
+        hybrid_chain_pep    1032    38.1 %        28.9 %
+    hybrid_chain_pep_chi    1105    39.5 %        27.2 %
+   hybrid_chain_pep_chi3    1161    40.5 %        28.0 %
+
+=== test_1_2A : 18243 residus avec chi1 ===
+                         chi1    rotamere
+      hybrid_chain_pep   89.8 %   71.5 %
+  hybrid_chain_pep_chi   89.3 %   71.2 %
+ hybrid_chain_pep_chi3   88.9 %   70.9 %
+           bib. (type)   58.7 %   43.3 %
+   bib. (type+phi/psi)   66.3 %   51.0 %
+
+  residus a chi1 faux              n   comme la bib.   densite pred > vraie
+        hybrid_chain_pep    1855    33.6 %        34.1 %
+    hybrid_chain_pep_chi    1955    34.6 %        33.2 %
+   hybrid_chain_pep_chi3    2016    34.4 %        34.8 %
+
+=== test_2_3A : 16825 residus avec chi1 ===
+                         chi1    rotamere
+      hybrid_chain_pep   75.6 %   52.5 %
+  hybrid_chain_pep_chi   75.0 %   51.9 %
+ hybrid_chain_pep_chi3   74.5 %   51.8 %
+           bib. (type)   57.0 %   40.3 %
+   bib. (type+phi/psi)   62.0 %   44.8 %
+
+  residus a chi1 faux              n   comme la bib.   densite pred > vraie
+        hybrid_chain_pep    4109    38.5 %        41.7 %
+    hybrid_chain_pep_chi    4213    39.5 %        41.6 %
+   hybrid_chain_pep_chi3    4284    37.5 %        42.1 %
+
+=== test_3_4A : 19509 residus avec chi1 ===
+                         chi1    rotamere
+      hybrid_chain_pep   68.6 %   44.4 %
+  hybrid_chain_pep_chi   68.4 %   44.1 %
+ hybrid_chain_pep_chi3   67.8 %   44.0 %
+           bib. (type)   53.4 %   37.0 %
+   bib. (type+phi/psi)   57.6 %   41.0 %
+
+  residus a chi1 faux              n   comme la bib.   densite pred > vraie
+        hybrid_chain_pep    6119    35.7 %        41.0 %
+    hybrid_chain_pep_chi    6167    36.4 %        41.5 %
+   hybrid_chain_pep_chi3    6280    35.7 %        42.2 %
+
+=== chi1 juste selon la densite de la vraie chaine laterale (score z, quintiles communs) ===
+  bornes : 0.35  0.72  1.07  1.48
+
+  val
+                               Q1       Q2       Q3       Q4       Q5
+        part des residus     6.5%    12.0%    17.2%    25.6%    38.8%
+        hybrid_chain_pep    59.7%    78.9%    91.3%    96.2%    99.0%
+    hybrid_chain_pep_chi    59.4%    77.6%    90.2%    95.7%    98.8%
+   hybrid_chain_pep_chi3    57.9%    77.8%    89.2%    95.4%    98.6%
+             bib. (type)    50.0%    48.8%    58.2%    61.7%    59.9%
+     bib. (type+phi/psi)    51.0%    55.9%    65.3%    70.3%    69.1%
+
+  test_1_2A
+                               Q1       Q2       Q3       Q4       Q5
+        part des residus     9.5%    14.6%    20.5%    24.7%    30.6%
+        hybrid_chain_pep    59.3%    82.4%    90.1%    95.3%    98.2%
+    hybrid_chain_pep_chi    58.4%    81.8%    89.4%    95.1%    97.7%
+   hybrid_chain_pep_chi3    57.7%    81.6%    88.6%    94.9%    97.7%
+             bib. (type)    57.0%    53.0%    57.2%    60.0%    62.0%
+     bib. (type+phi/psi)    60.1%    59.0%    69.6%    69.5%    67.0%
+
+  test_2_3A
+                               Q1       Q2       Q3       Q4       Q5
+        part des residus    24.3%    23.7%    22.1%    18.6%    11.3%
+        hybrid_chain_pep    52.2%    72.6%    83.8%    89.8%    92.8%
+    hybrid_chain_pep_chi    52.1%    72.6%    82.3%    89.3%    91.2%
+   hybrid_chain_pep_chi3    51.6%    72.0%    81.4%    89.2%    91.8%
+             bib. (type)    51.6%    56.4%    59.9%    60.8%    57.7%
+     bib. (type+phi/psi)    54.8%    61.2%    64.8%    67.4%    65.0%
+
+  test_3_4A
+                               Q1       Q2       Q3       Q4       Q5
+        part des residus    35.0%    27.1%    19.7%    13.1%     5.1%
+        hybrid_chain_pep    53.9%    69.6%    78.6%    84.6%    85.1%
+    hybrid_chain_pep_chi    53.2%    69.7%    78.5%    84.5%    85.0%
+   hybrid_chain_pep_chi3    53.0%    68.6%    78.1%    83.7%    85.2%
+             bib. (type)    50.5%    54.2%    55.5%    55.6%    54.9%
+     bib. (type+phi/psi)    53.2%    59.0%    58.9%    62.4%    62.2%
+
+Ecrit dans runs/rotamer_diagnostics_chi_e100

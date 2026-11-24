@@ -1,0 +1,35 @@
+data_hybrid_chain_pep
+#
+loop_
+_atom_site.group_PDB
+_atom_site.id
+_atom_site.type_symbol
+_atom_site.label_atom_id
+_atom_site.label_comp_id
+_atom_site.label_asym_id
+_atom_site.label_entity_id
+_atom_site.label_seq_id
+_atom_site.Cartn_x
+_atom_site.Cartn_y
+_atom_site.Cartn_z
+_atom_site.occupancy
+_atom_site.B_iso_or_equiv
+_atom_site.auth_seq_id
+_atom_site.auth_comp_id
+_atom_site.auth_asym_id
+_atom_site.auth_atom_id
+_atom_site.pdbx_PDB_model_num
+_atom_site.label_alt_id
+_atom_site.pdbx_PDB_ins_code
+ATOM 1 N N ARG S 1 67 126.186 97.776 149.872 1.00 1.68 67 ARG S N 1 . ?
+ATOM 2 C CA ARG S 1 67 124.835 97.589 150.395 1.00 1.68 67 ARG S CA 1 . ?
+ATOM 3 C C ARG S 1 67 124.391 98.742 151.272 1.00 1.68 67 ARG S C 1 . ?
+ATOM 4 O O ARG S 1 67 123.197 98.839 151.624 1.00 1.68 67 ARG S O 1 . ?
+ATOM 5 C CB ARG S 1 67 124.752 96.251 151.166 1.00 1.68 67 ARG S CB 1 . ?
+ATOM 6 C CG ARG S 1 67 123.818 96.227 152.381 1.00 1.68 67 ARG S CG 1 . ?
+ATOM 7 C CD ARG S 1 67 123.684 94.802 152.938 1.00 1.68 67 ARG S CD 1 . ?
+ATOM 8 N NE ARG S 1 67 123.359 94.842 154.378 1.00 1.68 67 ARG S NE 1 . ?
+ATOM 9 C CZ ARG S 1 67 124.248 94.643 155.313 1.00 1.68 67 ARG S CZ 1 . ?
+ATOM 10 N NH1 ARG S 1 67 125.482 94.274 154.997 1.00 1.68 67 ARG S NH1 1 . ?
+ATOM 11 N NH2 ARG S 1 67 123.877 94.867 156.555 1.00 1.68 67 ARG S NH2 1 . ?
+#

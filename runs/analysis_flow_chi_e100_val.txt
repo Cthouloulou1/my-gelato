@@ -1,0 +1,35 @@
+
+1. Erreur moyenne par rang de placement (A) ; entre parentheses : erreur locale
+   (rangs : 1=N, 2=C, 3=CB, 4=O, 5=CG, 6=CD, 7=NE, ... pour ARG ; 3 = O pour GLY)
+rang  n_atomes (hybrid_chain_pep)  hybrid_chain_pep  hybrid_chain_pep_chi  hybrid_chain_pep_chi3
+   1                        15392    0.081 (0.081)    0.091 (0.091)    0.112 (0.112)
+   2                        15392    0.082 (0.082)    0.090 (0.090)    0.107 (0.107)
+   3                        15392    0.133 (0.127)    0.147 (0.140)    0.171 (0.161)
+   4                        14215    0.213 (0.150)    0.241 (0.170)    0.285 (0.201)
+   5                        12930    0.379 (0.338)    0.399 (0.355)    0.419 (0.374)
+   6                        11666    0.590 (0.477)    0.608 (0.486)    0.625 (0.504)
+   7                         9186    0.852 (0.634)    0.865 (0.640)    0.879 (0.653)
+   8                         5089    1.066 (0.618)    1.085 (0.622)    1.103 (0.631)
+   9                         2901    0.815 (0.478)    0.850 (0.496)    0.839 (0.495)
+  10                         2539    0.788 (0.410)    0.845 (0.441)    0.883 (0.472)
+
+2. Residus avec N et C inverses (sens de la chaine)
+  hybrid_chain_pep : GLY   0.0% (n=1177)   autres   0.0%
+  hybrid_chain_pep_chi : GLY   0.0% (n=1177)   autres   0.0%
+  hybrid_chain_pep_chi3 : GLY   0.0% (n=1177)   autres   0.0%
+
+3. Erreur locale de l'atome selon l'erreur de son parent (rangs >= 5)
+          parent    0-0.5 A    0.5-1 A      1-2 A      2-4 A       >4 A
+hybrid_chain_pep      0.344      0.906      1.260      1.383      1.769
+hybrid_chain_pep_chi      0.354      0.879      1.284      1.380      1.798
+hybrid_chain_pep_chi3      0.367      0.890      1.276      1.382      1.784
+
+4. Liaison peptidique entre residus consecutifs (val), chaque residu etant predit separement
+                  paires  C-N moy |err C-N|  >0.1 A  >0.3 A |err 1-3| |err omega| omega<150
+            vrai   15297    1.332                                                      0.2%
+hybrid_chain_pep   15297    1.333     0.044    5.2%    0.4%     0.031         3.6      0.8%
+hybrid_chain_pep_chi   15297    1.324     0.047    7.7%    1.1%     0.034         4.4      1.3%
+hybrid_chain_pep_chi3   15297    1.324     0.063   14.5%    1.2%     0.045         5.4      2.0%
+  (|err| : ecart a la vraie valeur, A ; omega : diedre CA-C-N-CA, degres ; omega<150 : plan peptidique tordu)
+
+Tables ecrites dans runs/analysis_flow_chi_e100/val

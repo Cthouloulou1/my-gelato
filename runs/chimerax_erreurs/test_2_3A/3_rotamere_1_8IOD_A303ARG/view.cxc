@@ -1,0 +1,36 @@
+# Session generee par make_error_examples.py
+# Rotamere : chi3 112 deg, chi4 62 deg (squelette a 4 deg)
+# gris epais : vrai residu ; gris fin : vrais voisins +/-3 ; bleu : hybrid_chain_pep
+close session
+set bgColor white
+lighting soft
+graphics silhouettes true width 1.5
+open "/home/eyerly/dev/my-gelato/runs/chimerax_erreurs/test_2_3A/3_rotamere_1_8IOD_A303ARG/vrai.cif" name vrai
+open "/home/eyerly/dev/my-gelato/runs/chimerax_erreurs/test_2_3A/3_rotamere_1_8IOD_A303ARG/hybrid_chain_pep.cif" name hybrid_chain_pep
+cartoon hide
+hide atoms
+show #1-2 atoms
+style #1-2 stick
+size #1-2 stickRadius 0.15
+# voisins (vrai) : fins et gris
+color #1 #c9ccd1 target a
+size #1 stickRadius 0.08
+# #1 = vrai
+color #1/A:303 #52514e target a
+size #1/A:303 stickRadius 0.25
+# #2 = hybrid_chain_pep
+color #2 #2a78d6 target a
+view #1/A:303
+
+# --- utile ---
+# masquer un modele : hide #3 models   (et show #3 models)
+# vue detaillee (couleurs N/O, carte, etiquettes, distance de l'atome le plus faux, legende) : copier ces lignes dans ChimeraX
+#   color #1/A:303 byhetero
+#   color #2 byhetero
+#   open "/data/eyerly/pdb_cryoem_splits/8IOD/emd_35616.map"
+#   volume #3 style mesh sdLevel 1.5 color #9ec5f4
+#   volume zone #3 nearAtoms #1/A:303 range 3
+#   label #1-2/A:303@N,C,CB atoms height 0.4
+#   distance #1/A:303@NH2 #2/A:303@NH2
+#   2dlabels text "Rotamere : chi3 112 deg, chi4 62 deg (squelette a 4 deg)" xpos 0.02 ypos 0.94 size 18 color black
+# image : save /home/eyerly/dev/my-gelato/runs/chimerax_erreurs/test_2_3A/3_rotamere_1_8IOD_A303ARG/view.png width 1600 supersample 3

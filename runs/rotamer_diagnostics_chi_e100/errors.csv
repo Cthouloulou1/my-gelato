@@ -1,0 +1,13 @@
+ensemble,modele,n_chi1_faux,comme_bib,densite_pred_sup_vraie
+val,hybrid_chain_pep,1032,0.3808,0.2888
+val,hybrid_chain_pep_chi,1105,0.3946,0.2724
+val,hybrid_chain_pep_chi3,1161,0.4048,0.2799
+test_1_2A,hybrid_chain_pep,1855,0.3364,0.3407
+test_1_2A,hybrid_chain_pep_chi,1955,0.3463,0.3320
+test_1_2A,hybrid_chain_pep_chi3,2016,0.3438,0.3477
+test_2_3A,hybrid_chain_pep,4109,0.3848,0.4171
+test_2_3A,hybrid_chain_pep_chi,4213,0.3952,0.4156
+test_2_3A,hybrid_chain_pep_chi3,4284,0.3749,0.4206
+test_3_4A,hybrid_chain_pep,6119,0.3572,0.4104
+test_3_4A,hybrid_chain_pep_chi,6167,0.3642,0.4153
+test_3_4A,hybrid_chain_pep_chi3,6280,0.3567,0.4220
